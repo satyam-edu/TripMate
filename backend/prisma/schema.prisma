@@ -1,0 +1,56 @@
+// This is your Prisma Schema file. It tells your PostgreSQL database exactly what tables to create.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. The User Table (Based on our Onboarding Flow)
+model User {
+  id        String   @id @default(uuid())
+  googleId  String   @unique
+  name      String
+  gender    String?
+  avatar    String?
+  phone     String?  @unique
+  bio       String?
+  tags      String[] // e.g., ["Backpacker", "Luxury"]
+  trips     Trip[]   @relation("HostTrips") // Trips this user created
+  requests  Request[] // Trips this user has requested to join
+  createdAt DateTime @default(now())
+}
+
+// 2. The Trip Table (Based on our Post Flow)
+model Trip {
+  id          String    @id @default(uuid())
+  hostId      String
+  host        User      @relation("HostTrips", fields: [hostId], references: [id])
+  destination String
+  country     String
+  startDate   DateTime
+  endDate     DateTime
+  budget      Int       // Stored in INR (₹)
+  maxGuests   Int
+  tags        String[]
+  requests    Request[] // All the requests sent to this trip
+  createdAt   DateTime  @default(now())
+}
+
+// 3. The Request Table (Based on our Inbox/Alerts Flow)
+model Request {
+  id        String   @id @default(uuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  status    String   @default("PENDING") // Status can be: PENDING, ACCEPTED, DECLINED
+  message   String?
+  createdAt DateTime @default(now())
+
+  // This strict rule prevents a user from spam-clicking "Join" on the same trip
+  @@unique([tripId, userId]) 
+}

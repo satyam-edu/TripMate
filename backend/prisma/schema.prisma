@@ -1,12 +1,13 @@
-// This is your Prisma Schema file. It tells your PostgreSQL database exactly what tables to create.
+//Prisma Schema file. It tells PostgreSQL database exactly what tables to create.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // 1. The User Table (Based on our Onboarding Flow)

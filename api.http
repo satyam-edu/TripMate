@@ -1,2 +1,23 @@
 ### Test Trip Feed
 GET http://localhost:5001/api/trips
+
+
+### Create a Test User
+POST http://localhost:5001/api/users
+Content-Type: application/json
+
+{
+  "googleId": "test-google-id-123",
+  "name": "Satyam (Test Account)",
+  "phone": "9876543210",
+  "bio": "Minimalist designer and full-stack engineer building TripMate."
+}
+
+
+### Google OAuth Login  (replace token with a real Google idToken from the frontend)
+POST http://localhost:5001/api/auth/google
+Content-Type: application/json
+
+{
+  "idToken": "PASTE_REAL_GOOGLE_ID_TOKEN_HERE"
+}

@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import userRoutes from './routes/user.routes';
 import tripRoutes from './routes/trip.routes';
 import requestRoutes from './routes/request.routes';
+import authRoutes from './routes/auth.routes';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 });
 
 // ── Feature Routes ────────────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/requests', requestRoutes);

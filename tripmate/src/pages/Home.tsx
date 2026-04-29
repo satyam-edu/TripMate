@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import TripCard from '../components/TripCard';
 import type { Trip } from '../types';
-import { Home as HomeIcon, PlusCircle, Bell as NavBellIcon, MessageSquare, User as UserIcon, Search, SlidersHorizontal } from 'lucide-react';
+import { Home as HomeIcon, PlusCircle, Bell as NavBellIcon, MessageSquare, User as UserIcon, Search, SlidersHorizontal, Menu } from 'lucide-react';
 
 // ── Icons (all strictly sized) ────────────────────────────────────────────────
 function PlusIcon() {
@@ -118,19 +118,78 @@ function BottomNav() {
   );
 }
 
+// ── Desktop Floated Nav ──────────────────────────────────────────────────────
+function DesktopFloatedNav({ name, onLogout }: { name: string; onLogout: () => void }) {
+  return (
+    <div className="hidden md:flex justify-between items-center py-6 mb-4">
+
+      {/* Left: Brand */}
+      <span className="text-2xl font-bold text-slate-900">Trip Mate</span>
+
+      {/* Center: Nav Links */}
+      <nav className="flex items-center gap-8">
+        {NAV_ITEMS.slice(0, 4).map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.label}
+              type="button"
+              className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+                item.active ? 'text-sky-500' : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Icon className="w-4 h-4" strokeWidth={item.active ? 2.5 : 2} />
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Right: Bell + Profile Pill */}
+      <div className="flex items-center gap-4">
+
+        <button
+          type="button"
+          title="Notifications"
+          className="w-10 h-10 rounded-full hover:bg-slate-50 flex items-center justify-center text-slate-600 transition-colors"
+        >
+          <NavBellIcon className="w-5 h-5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          title="Profile / Sign out"
+          className="flex items-center gap-2 border border-slate-200 rounded-full p-1 pl-3 hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <Menu className="w-4 h-4 text-slate-600" />
+          <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
+            {name[0]?.toUpperCase() ?? 'T'}
+          </div>
+        </button>
+
+      </div>
+    </div>
+  );
+}
+
 // ── Header ────────────────────────────────────────────────────────────────────
 function PageHeader({ name, onLogout }: { name: string; onLogout: () => void }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex justify-between items-center mb-8 md:hidden">
+
+      {/* Left: Greeting */}
       <div className="flex flex-col">
         <p className="text-sm text-slate-500">{greeting}</p>
         <h1 className="text-2xl font-bold text-slate-900">
           {name.split(' ')[0]}
         </h1>
       </div>
+
+      {/* Right: Bell */}
       <button
         type="button"
         onClick={onLogout}
@@ -199,8 +258,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24 md:pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-14">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-0">
 
+        <DesktopFloatedNav name={user?.name ?? 'Traveller'} onLogout={logout} />
         <PageHeader name={user?.name ?? 'Traveller'} onLogout={logout} />
         <SearchBar />
 

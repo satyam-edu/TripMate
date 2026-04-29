@@ -64,6 +64,40 @@ export const getAllTrips = async (_req: Request, res: Response): Promise<void> =
   }
 };
 
+// POST /api/trips/:id/join
+// Creates a join request for the authenticated user on the given trip.
+export const requestToJoinTrip = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tripId = req.params.id as string;
+    const userId = req.userId as string;
+
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+
+    if (!trip) {
+      res.status(404).json({ error: 'Trip not found.' });
+      return;
+    }
+
+    if (trip.hostId === userId) {
+      res.status(400).json({ error: 'You cannot request to join your own trip.' });
+      return;
+    }
+
+    await prisma.request.create({
+      data: { tripId, userId },
+    });
+
+    res.status(200).json({ message: 'Join request sent successfully.' });
+  } catch (error: unknown) {
+    if (isPrismaError(error, 'P2002')) {
+      res.status(409).json({ error: 'You have already requested to join this trip.' });
+      return;
+    }
+    console.error('[requestToJoinTrip]', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
 // ── Helper ────────────────────────────────────────────────────────────────────
 function isPrismaError(error: unknown, code: string): boolean {
   return (

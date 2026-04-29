@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { Trip } from '../types';
+import api from '../services/api';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatDate(iso: string): string {
@@ -93,6 +95,21 @@ export default function TripCard({ trip }: TripCardProps) {
   const [bgCls, txtCls] = avatarPalette(trip.host.name);
   const spotsLeft = trip.maxGuests - (trip._count?.requests ?? 0);
 
+  const [isJoining, setIsJoining]       = useState<boolean>(false);
+  const [hasRequested, setHasRequested] = useState<boolean>(false);
+
+  const handleJoinRequest = async (): Promise<void> => {
+    setIsJoining(true);
+    try {
+      await api.post(`/trips/${trip.id}/join`);
+      setHasRequested(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
   return (
     <article className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden flex flex-col group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
 
@@ -182,9 +199,17 @@ export default function TripCard({ trip }: TripCardProps) {
 
           <button
             type="button"
-            className="flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl bg-slate-900 text-white hover:bg-teal-600 active:scale-95 transition-all duration-200 shadow-sm"
+            onClick={handleJoinRequest}
+            disabled={isJoining || hasRequested}
+            className={
+              `flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl transition-all duration-200 shadow-sm active:scale-95 ${
+                hasRequested
+                  ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-default'
+                  : 'bg-sky-500 text-white hover:bg-sky-600'
+              } disabled:active:scale-100`
+            }
           >
-            Request to Join
+            {isJoining ? 'Sending...' : hasRequested ? 'Pending' : 'Request to Join'}
           </button>
         </div>
 

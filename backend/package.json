@@ -5,11 +5,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/server.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "prisma": {
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+  },
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^5.22.0",

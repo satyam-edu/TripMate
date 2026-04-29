@@ -2,16 +2,71 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 
 // POST /api/trips
-// Creates a new trip. Requires destination, dates, budget, maxGuests, and hostId.
-export const createTrip = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { hostId, destination, country, startDate, endDate, budget, maxGuests, tags } = req.body;
+// Creates a new trip owned by the authenticated user (hostId comes from JWT).
+interface CreateTripBody {
+  destination?: string;
+  country?: string;
+  startDate?: string;
+  endDate?: string;
+  budget?: number | string;
+  maxGuests?: number | string;
+  tags?: string[];
+  coverImage?: string;
+  description?: string;
+}
 
-    if (!hostId || !destination || !country || !startDate || !endDate || budget == null || !maxGuests) {
+export const createTrip = async (req: Request, res: Response): Promise<void> => {
+  console.log('INCOMING TRIP DATA:', req.body);
+  try {
+    const hostId = req.userId;
+    if (!hostId) {
+      res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+
+    const {
+      destination,
+      country,
+      startDate,
+      endDate,
+      budget,
+      maxGuests,
+      tags,
+      coverImage,
+      description,
+    } = req.body as CreateTripBody;
+
+    if (!destination || !country || !startDate || !endDate || budget == null || maxGuests == null) {
       res.status(400).json({
-        error: 'hostId, destination, country, startDate, endDate, budget, and maxGuests are required.',
+        error: 'destination, country, startDate, endDate, budget, and maxGuests are required.',
       });
       return;
+    }
+
+    const parsedStart = new Date(startDate);
+    const parsedEnd   = new Date(endDate);
+    if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
+      res.status(400).json({ error: 'startDate and endDate must be valid dates.' });
+      return;
+    }
+    if (parsedEnd < parsedStart) {
+      res.status(400).json({ error: 'endDate must be after startDate.' });
+      return;
+    }
+
+    const budgetInt = Math.trunc(Number(budget));
+    const guestsInt = Math.trunc(Number(maxGuests));
+    if (!Number.isFinite(budgetInt) || budgetInt < 0 || !Number.isFinite(guestsInt) || guestsInt < 1) {
+      res.status(400).json({ error: 'budget and maxGuests must be valid positive numbers.' });
+      return;
+    }
+
+    let finalCoverImage: string = coverImage ?? '';
+    if (!finalCoverImage || finalCoverImage.trim() === '') {
+      const seed = destination
+        ? encodeURIComponent(destination.split(',')[0]!.trim())
+        : 'travel';
+      finalCoverImage = `https://picsum.photos/seed/${seed}/800/600`;
     }
 
     const trip = await prisma.trip.create({
@@ -19,34 +74,40 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
         hostId,
         destination,
         country,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        budget: Number(budget),
-        maxGuests: Number(maxGuests),
-        tags: tags ?? [],
+        startDate:   parsedStart,
+        endDate:     parsedEnd,
+        budget:      budgetInt,
+        maxGuests:   guestsInt,
+        tags:        Array.isArray(tags) ? tags : [],
+        coverImage:  finalCoverImage,
+        description: description && description.trim() !== '' ? description.trim() : null,
       },
     });
 
     res.status(201).json(trip);
   } catch (error: unknown) {
+    console.error('CRITICAL BACKEND ERROR:', error);
     if (isPrismaError(error, 'P2003')) {
       res.status(404).json({ error: 'Host user not found.' });
       return;
     }
-    console.error('[createTrip]', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 // GET /api/trips
-// Fetches all upcoming trips (startDate >= today), including the host's name and avatar.
-export const getAllTrips = async (_req: Request, res: Response): Promise<void> => {
+// Fetches all upcoming trips, excluding the authenticated user's own trips.
+// If no token is present (public view), returns all trips.
+export const getAllTrips = async (req: Request, res: Response): Promise<void> => {
   try {
+    const userId = req.userId;
+
     const trips = await prisma.trip.findMany({
       where: {
         startDate: { gte: new Date() },
+        ...(userId ? { hostId: { not: userId } } : {}),
       },
-      orderBy: { startDate: 'asc' },
+      orderBy: { createdAt: 'desc' },
       include: {
         host: {
           select: { id: true, name: true, avatar: true },
@@ -89,11 +150,11 @@ export const requestToJoinTrip = async (req: Request, res: Response): Promise<vo
 
     res.status(200).json({ message: 'Join request sent successfully.' });
   } catch (error: unknown) {
+    console.error('CRITICAL BACKEND ERROR:', error);
     if (isPrismaError(error, 'P2002')) {
       res.status(409).json({ error: 'You have already requested to join this trip.' });
       return;
     }
-    console.error('[requestToJoinTrip]', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 };

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import type { Trip } from '../types';
 import api from '../services/api';
 
@@ -27,17 +28,6 @@ function avatarPalette(name: string) {
   return PALETTES[name.charCodeAt(0) % PALETTES.length]!;
 }
 
-const DESTINATION_IMAGES: Record<string, string> = {
-  bali:      'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80',
-  paris:     'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80',
-  tokyo:     'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80',
-  santorini: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80',
-  goa:       'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&q=80',
-  manali:    'https://images.unsplash.com/photo-1605649461784-b7d8028f20dc?w=800&q=80',
-  singapore: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&q=80',
-  dubai:     'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80',
-};
-
 const GRADIENTS = [
   'from-violet-400 to-indigo-500',
   'from-teal-400 to-cyan-500',
@@ -45,11 +35,6 @@ const GRADIENTS = [
   'from-amber-400 to-orange-500',
   'from-sky-400 to-blue-500',
 ] as const;
-
-function getCoverImage(dest: string) {
-  const key = dest.toLowerCase().split(',')[0]?.trim() ?? '';
-  return DESTINATION_IMAGES[key] ?? null;
-}
 
 function getGradient(dest: string) {
   return GRADIENTS[dest.charCodeAt(0) % GRADIENTS.length]!;
@@ -87,10 +72,16 @@ function PinIcon() {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-interface TripCardProps { trip: Trip }
+interface TripCardProps {
+  trip: Trip;
+  currentUserId: string;
+}
 
-export default function TripCard({ trip }: TripCardProps) {
-  const coverUrl  = getCoverImage(trip.destination);
+export default function TripCard({ trip, currentUserId }: TripCardProps) {
+  const isHost = currentUserId === trip.hostId;
+  const coverUrl  =
+    trip.coverImage ||
+    `https://loremflickr.com/800/600/${encodeURIComponent(trip.destination.split(',')[0]?.trim() ?? 'travel')}/travel`;
   const gradient  = getGradient(trip.destination);
   const [bgCls, txtCls] = avatarPalette(trip.host.name);
   const spotsLeft = trip.maxGuests - (trip._count?.requests ?? 0);
@@ -103,8 +94,18 @@ export default function TripCard({ trip }: TripCardProps) {
     try {
       await api.post(`/trips/${trip.id}/join`);
       setHasRequested(true);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        setHasRequested(true);
+      } else {
+        console.error(error);
+        const message =
+          (axios.isAxiosError(error) &&
+            (error.response?.data as { message?: string } | undefined)?.message) ||
+          (error instanceof Error ? error.message : null) ||
+          'Failed to request to join';
+        alert(message);
+      }
     } finally {
       setIsJoining(false);
     }
@@ -114,21 +115,13 @@ export default function TripCard({ trip }: TripCardProps) {
     <article className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden flex flex-col group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
 
       {/* Cover */}
-      <div className="relative w-full aspect-[16/9] overflow-hidden">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={trip.destination}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
-        ) : (
-          <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-            <span className="text-white text-5xl font-black opacity-20 select-none">
-              {trip.destination[0]}
-            </span>
-          </div>
-        )}
+      <div className={`relative w-full aspect-[16/9] overflow-hidden bg-gradient-to-br ${gradient}`}>
+        <img
+          src={coverUrl}
+          alt={trip.destination}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+        />
 
         {/* Tags */}
         <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap max-w-[70%]">
@@ -197,20 +190,26 @@ export default function TripCard({ trip }: TripCardProps) {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleJoinRequest}
-            disabled={isJoining || hasRequested}
-            className={
-              `flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl transition-all duration-200 shadow-sm active:scale-95 ${
-                hasRequested
-                  ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-default'
-                  : 'bg-sky-500 text-white hover:bg-sky-600'
-              } disabled:active:scale-100`
-            }
-          >
-            {isJoining ? 'Sending...' : hasRequested ? 'Pending' : 'Request to Join'}
-          </button>
+          {isHost ? (
+            <span className="flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl bg-slate-100 text-slate-400 border border-slate-200 cursor-default select-none">
+              Your Trip
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleJoinRequest}
+              disabled={isJoining || hasRequested}
+              className={
+                `flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl transition-all duration-200 shadow-sm active:scale-95 ${
+                  hasRequested
+                    ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-default'
+                    : 'bg-sky-500 text-white hover:bg-sky-600'
+                } disabled:active:scale-100`
+              }
+            >
+              {isJoining ? 'Sending...' : hasRequested ? 'Pending' : 'Request to Join'}
+            </button>
+          )}
         </div>
 
       </div>

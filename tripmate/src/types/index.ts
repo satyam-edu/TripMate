@@ -8,6 +8,7 @@ export interface TripHost {
 
 export interface Trip {
   id: string;
+  hostId: string;
   destination: string;
   country: string;
   startDate: string;   // ISO date string from the API
@@ -15,6 +16,8 @@ export interface Trip {
   budget: number;      // in INR
   maxGuests: number;
   tags: string[];
+  coverImage: string | null;
+  description: string | null;
   host: TripHost;
   _count?: {
     requests: number;

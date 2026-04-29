@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import TripCard from '../components/TripCard';
+import CreateTripModal from '../components/CreateTripModal';
 import type { Trip } from '../types';
 import { Home as HomeIcon, PlusCircle, Bell as NavBellIcon, MessageSquare, User as UserIcon, Search, SlidersHorizontal, Menu } from 'lucide-react';
 
@@ -40,15 +41,25 @@ function SkeletonCard() {
 }
 
 // ── Empty State ───────────────────────────────────────────────────────────────
-function EmptyState() {
+function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
   return (
     <div className="col-span-full flex flex-col items-center justify-center min-h-[50vh] text-center px-6">
       <div className="relative mb-8 select-none">
-        <div className="w-28 h-28 rounded-full bg-slate-100 flex items-center justify-center">
-          <span className="text-5xl" role="img" aria-label="airplane">✈️</span>
+        <div className="w-32 h-32 rounded-full bg-slate-100 flex items-center justify-center">
+          <svg viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-20 h-20" aria-hidden="true">
+            {/* Globe */}
+            <circle cx="52" cy="56" r="28" fill="#e0f2fe" stroke="#7dd3fc" strokeWidth="2" />
+            <ellipse cx="52" cy="56" rx="11" ry="28" fill="none" stroke="#7dd3fc" strokeWidth="1.5" />
+            <line x1="24" y1="56" x2="80" y2="56" stroke="#7dd3fc" strokeWidth="1.5" />
+            <line x1="26" y1="44" x2="78" y2="44" stroke="#bae6fd" strokeWidth="1" />
+            <line x1="26" y1="68" x2="78" y2="68" stroke="#bae6fd" strokeWidth="1" />
+            {/* Plane */}
+            <g transform="translate(10,14) rotate(-30 24 24)">
+              <path d="M24 4 L30 20 L46 20 L34 28 L38 44 L24 36 L10 44 L14 28 L2 20 L18 20 Z" fill="#0f172a" opacity="0" />
+              <path d="M8 22 C8 22 20 10 30 14 L44 8 C46 7 48 9 46 11 L36 20 L40 32 C41 35 38 37 36 35 L28 26 L16 32 L18 38 C19 40 17 42 15 41 L10 36 L6 38 C4 39 3 37 4 35 L8 28 L4 26 C2 25 3 22 5 22 Z" fill="#1e293b" />
+            </g>
+          </svg>
         </div>
-        <span className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-teal-50 border-2 border-white flex items-center justify-center text-base">🌏</span>
-        <span className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-violet-50 border-2 border-white flex items-center justify-center text-base">🗺️</span>
       </div>
 
       <h2 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">No trips yet.</h2>
@@ -58,7 +69,8 @@ function EmptyState() {
 
       <button
         type="button"
-        className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-sm font-semibold rounded-2xl shadow-lg hover:bg-teal-600 active:scale-95 transition-all duration-200"
+        onClick={onCreateClick}
+        className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-sm font-semibold rounded-2xl shadow-lg hover:bg-sky-600 active:scale-95 transition-all duration-200"
       >
         <PlusIcon />
         Plan your first adventure
@@ -94,20 +106,37 @@ const NAV_ITEMS = [
   { icon: UserIcon, label: 'Profile', active: false },
 ] as const;
 
-function BottomNav() {
+function BottomNav({
+  onPostClick,
+  onHomeClick,
+  activeTab,
+}: {
+  onPostClick: () => void;
+  onHomeClick: () => void;
+  activeTab: string;
+}) {
   return (
-    <nav className="fixed bottom-0 w-full bg-white border-t border-slate-100 pb-safe pt-3 px-6 flex justify-between items-center z-50 md:hidden">
+    <nav className="fixed bottom-0 w-full bg-white border-t border-slate-100 pb-safe pt-3 px-6 flex justify-between items-center z-[60] md:hidden">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
+        const isActive =
+          item.label === 'Home' ? activeTab === 'home'
+          : item.label === 'Post' ? activeTab === 'post'
+          : false;
+        const handleClick =
+          item.label === 'Post' ? onPostClick
+          : item.label === 'Home' ? onHomeClick
+          : undefined;
         return (
           <button
             key={item.label}
             type="button"
+            onClick={handleClick}
             className={`flex flex-col items-center transition-colors ${
-              item.active ? 'text-teal-600' : 'text-slate-400 hover:text-slate-900'
+              isActive ? 'text-sky-500' : 'text-slate-400 hover:text-slate-900'
             }`}
           >
-            <Icon className="w-6 h-6" strokeWidth={item.active ? 2.5 : 2} />
+            <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
             <span className="text-[10px] font-medium mt-1">
               {item.label}
             </span>
@@ -119,7 +148,21 @@ function BottomNav() {
 }
 
 // ── Desktop Floated Nav ──────────────────────────────────────────────────────
-function DesktopFloatedNav({ name, onLogout }: { name: string; onLogout: () => void }) {
+function DesktopFloatedNav({
+  name,
+  onLogout,
+  onPostClick,
+  onHomeClick,
+  activeTab,
+}: {
+  name: string;
+  onLogout: () => void;
+  onPostClick: () => void;
+  onHomeClick: () => void;
+  activeTab: string;
+}) {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
   return (
     <div className="hidden md:flex justify-between items-center py-6 mb-4">
 
@@ -130,15 +173,24 @@ function DesktopFloatedNav({ name, onLogout }: { name: string; onLogout: () => v
       <nav className="flex items-center gap-8">
         {NAV_ITEMS.slice(0, 4).map((item) => {
           const Icon = item.icon;
+          const isActive =
+            item.label === 'Home' ? activeTab === 'home'
+            : item.label === 'Post' ? activeTab === 'post'
+            : false;
+          const handleClick =
+            item.label === 'Home' ? onHomeClick
+            : item.label === 'Post' ? onPostClick
+            : undefined;
           return (
             <button
               key={item.label}
               type="button"
+              onClick={handleClick}
               className={`flex items-center gap-2 text-sm font-medium transition-colors ${
-                item.active ? 'text-sky-500' : 'text-slate-500 hover:text-slate-900'
+                isActive ? 'text-sky-500' : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              <Icon className="w-4 h-4" strokeWidth={item.active ? 2.5 : 2} />
+              <Icon className="w-4 h-4" strokeWidth={isActive ? 2.5 : 2} />
               {item.label}
             </button>
           );
@@ -156,17 +208,38 @@ function DesktopFloatedNav({ name, onLogout }: { name: string; onLogout: () => v
           <NavBellIcon className="w-5 h-5" />
         </button>
 
-        <button
-          type="button"
-          onClick={onLogout}
-          title="Profile / Sign out"
-          className="flex items-center gap-2 border border-slate-200 rounded-full p-1 pl-3 hover:shadow-md transition-shadow cursor-pointer"
-        >
-          <Menu className="w-4 h-4 text-slate-600" />
-          <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
-            {name[0]?.toUpperCase() ?? 'T'}
-          </div>
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsProfileMenuOpen((o) => !o)}
+            title="Profile menu"
+            className="flex items-center gap-2 border border-slate-200 rounded-full p-1 pl-3 hover:shadow-md transition-shadow cursor-pointer"
+          >
+            <Menu className="w-4 h-4 text-slate-600" />
+            <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
+              {name[0]?.toUpperCase() ?? 'T'}
+            </div>
+          </button>
+
+          {isProfileMenuOpen && (
+            <div className="absolute right-0 top-12 w-48 bg-white border border-slate-100 rounded-xl shadow-lg py-1 z-50">
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen(false)}
+                className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Profile
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsProfileMenuOpen(false); onLogout(); }}
+                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-slate-50 transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
 
       </div>
     </div>
@@ -174,7 +247,7 @@ function DesktopFloatedNav({ name, onLogout }: { name: string; onLogout: () => v
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
-function PageHeader({ name, onLogout }: { name: string; onLogout: () => void }) {
+function PageHeader({ name }: { name: string }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
@@ -192,8 +265,7 @@ function PageHeader({ name, onLogout }: { name: string; onLogout: () => void }) 
       {/* Right: Bell */}
       <button
         type="button"
-        onClick={onLogout}
-        title="Notifications / Sign out"
+        title="Notifications"
         className="relative w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-900 shadow-sm border border-slate-100 hover:bg-slate-100 transition-colors"
       >
         <NavBellIcon className="w-5 h-5" />
@@ -221,25 +293,14 @@ function SearchBar() {
   );
 }
 
-// ── Desktop FAB ───────────────────────────────────────────────────────────────
-function CreateTripFAB() {
-  return (
-    <button
-      type="button"
-      className="hidden md:flex fixed bottom-8 right-8 z-40 items-center gap-2 px-5 py-3.5 bg-slate-900 text-white text-sm font-semibold rounded-2xl shadow-lg hover:bg-teal-600 active:scale-95 transition-all duration-200"
-    >
-      <PlusIcon />
-      Create Trip
-    </button>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Home() {
   const { user, logout } = useAuth();
-  const [trips, setTrips]         = useState<Trip[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError]   = useState(false);
+  const [trips, setTrips]               = useState<Trip[]>([]);
+  const [isLoading, setIsLoading]       = useState(true);
+  const [hasError, setHasError]         = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeTab, setActiveTab]       = useState<string>('home');
 
   const fetchTrips = async () => {
     setIsLoading(true);
@@ -260,8 +321,14 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50 pb-24 md:pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-0">
 
-        <DesktopFloatedNav name={user?.name ?? 'Traveller'} onLogout={logout} />
-        <PageHeader name={user?.name ?? 'Traveller'} onLogout={logout} />
+        <DesktopFloatedNav
+          name={user?.name ?? 'Traveller'}
+          onLogout={logout}
+          activeTab={activeTab}
+          onHomeClick={() => { setActiveTab('home'); setIsCreateModalOpen(false); }}
+          onPostClick={() => { setActiveTab('post'); setIsCreateModalOpen(true); }}
+        />
+        <PageHeader name={user?.name ?? 'Traveller'} />
         <SearchBar />
 
         {/* Section heading */}
@@ -281,16 +348,24 @@ export default function Home() {
           ) : hasError ? (
             <ErrorState onRetry={fetchTrips} />
           ) : trips.length === 0 ? (
-            <EmptyState />
+            <EmptyState onCreateClick={() => { setIsCreateModalOpen(true); setActiveTab('post'); }} />
           ) : (
-            trips.map((trip) => <TripCard key={trip.id} trip={trip} />)
+            trips.map((trip) => <TripCard key={trip.id} trip={trip} currentUserId={user?.id ?? ''} />)
           )}
         </div>
 
       </div>
 
-      <BottomNav />
-      <CreateTripFAB />
+      <BottomNav
+        activeTab={activeTab}
+        onHomeClick={() => { setActiveTab('home'); setIsCreateModalOpen(false); }}
+        onPostClick={() => { setActiveTab('post'); setIsCreateModalOpen(true); }}
+      />
+      {isCreateModalOpen && (
+        <CreateTripModal
+          onClose={() => { setIsCreateModalOpen(false); setActiveTab('home'); }}
+        />
+      )}
     </div>
   );
 }

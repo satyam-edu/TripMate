@@ -37,6 +37,8 @@ model Trip {
   budget      Int       // Stored in INR (₹)
   maxGuests   Int
   tags        String[]
+  coverImage  String?
+  description String?
   requests    Request[] // All the requests sent to this trip
   createdAt   DateTime  @default(now())
 }

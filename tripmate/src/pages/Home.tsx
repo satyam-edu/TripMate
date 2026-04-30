@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import TripCard from '../components/TripCard';
 import CreateTripModal from '../components/CreateTripModal';
+import Requests from './Requests';
 import type { Trip } from '../types';
 import { Home as HomeIcon, PlusCircle, Bell as NavBellIcon, MessageSquare, User as UserIcon, Search, SlidersHorizontal, Menu } from 'lucide-react';
 
@@ -101,7 +102,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 const NAV_ITEMS = [
   { icon: HomeIcon, label: 'Home', active: true },
   { icon: PlusCircle, label: 'Post', active: false },
-  { icon: NavBellIcon, label: 'Hub', active: false },
+  { icon: NavBellIcon, label: 'Requests', active: false },
   { icon: MessageSquare, label: 'Chats', active: false },
   { icon: UserIcon, label: 'Profile', active: false },
 ] as const;
@@ -109,10 +110,12 @@ const NAV_ITEMS = [
 function BottomNav({
   onPostClick,
   onHomeClick,
+  onHubClick,
   activeTab,
 }: {
   onPostClick: () => void;
   onHomeClick: () => void;
+  onHubClick: () => void;
   activeTab: string;
 }) {
   return (
@@ -122,10 +125,12 @@ function BottomNav({
         const isActive =
           item.label === 'Home' ? activeTab === 'home'
           : item.label === 'Post' ? activeTab === 'post'
+          : item.label === 'Requests' ? activeTab === 'requests'
           : false;
         const handleClick =
           item.label === 'Post' ? onPostClick
           : item.label === 'Home' ? onHomeClick
+          : item.label === 'Requests' ? onHubClick
           : undefined;
         return (
           <button
@@ -153,12 +158,14 @@ function DesktopFloatedNav({
   onLogout,
   onPostClick,
   onHomeClick,
+  onHubClick,
   activeTab,
 }: {
   name: string;
   onLogout: () => void;
   onPostClick: () => void;
   onHomeClick: () => void;
+  onHubClick: () => void;
   activeTab: string;
 }) {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -176,10 +183,12 @@ function DesktopFloatedNav({
           const isActive =
             item.label === 'Home' ? activeTab === 'home'
             : item.label === 'Post' ? activeTab === 'post'
+            : item.label === 'Requests' ? activeTab === 'requests'
             : false;
           const handleClick =
             item.label === 'Home' ? onHomeClick
             : item.label === 'Post' ? onPostClick
+            : item.label === 'Requests' ? onHubClick
             : undefined;
           return (
             <button
@@ -327,32 +336,40 @@ export default function Home() {
           activeTab={activeTab}
           onHomeClick={() => { setActiveTab('home'); setIsCreateModalOpen(false); }}
           onPostClick={() => { setActiveTab('post'); setIsCreateModalOpen(true); }}
+          onHubClick={() => { setActiveTab('requests'); setIsCreateModalOpen(false); }}
         />
-        <PageHeader name={user?.name ?? 'Traveller'} />
-        <SearchBar />
 
-        {/* Section heading */}
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-bold text-slate-900">Upcoming Trips</h2>
-          {trips.length > 0 && !isLoading && (
-            <button type="button" className="text-xs font-semibold text-teal-600 hover:text-violet-600 transition-colors">
-              See all
-            </button>
-          )}
-        </div>
+        {activeTab === 'requests' ? (
+          <Requests />
+        ) : (
+          <>
+            <PageHeader name={user?.name ?? 'Traveller'} />
+            <SearchBar />
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
-          ) : hasError ? (
-            <ErrorState onRetry={fetchTrips} />
-          ) : trips.length === 0 ? (
-            <EmptyState onCreateClick={() => { setIsCreateModalOpen(true); setActiveTab('post'); }} />
-          ) : (
-            trips.map((trip) => <TripCard key={trip.id} trip={trip} currentUserId={user?.id ?? ''} />)
-          )}
-        </div>
+            {/* Section heading */}
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[15px] font-bold text-slate-900">Upcoming Trips</h2>
+              {trips.length > 0 && !isLoading && (
+                <button type="button" className="text-xs font-semibold text-teal-600 hover:text-violet-600 transition-colors">
+                  See all
+                </button>
+              )}
+            </div>
+
+            {/* Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
+              ) : hasError ? (
+                <ErrorState onRetry={fetchTrips} />
+              ) : trips.length === 0 ? (
+                <EmptyState onCreateClick={() => { setIsCreateModalOpen(true); setActiveTab('post'); }} />
+              ) : (
+                trips.map((trip) => <TripCard key={trip.id} trip={trip} currentUserId={user?.id ?? ''} />)
+              )}
+            </div>
+          </>
+        )}
 
       </div>
 
@@ -360,6 +377,7 @@ export default function Home() {
         activeTab={activeTab}
         onHomeClick={() => { setActiveTab('home'); setIsCreateModalOpen(false); }}
         onPostClick={() => { setActiveTab('post'); setIsCreateModalOpen(true); }}
+        onHubClick={() => { setActiveTab('requests'); setIsCreateModalOpen(false); }}
       />
       {isCreateModalOpen && (
         <CreateTripModal

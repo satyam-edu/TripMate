@@ -86,28 +86,22 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
   const [bgCls, txtCls] = avatarPalette(trip.host.name);
   const spotsLeft = trip.maxGuests - (trip._count?.requests ?? 0);
 
-  const [isJoining, setIsJoining]       = useState<boolean>(false);
-  const [hasRequested, setHasRequested] = useState<boolean>(false);
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'pending'>('idle');
 
-  const handleJoinRequest = async (): Promise<void> => {
-    setIsJoining(true);
+  const handleRequestToJoin = async (e: React.MouseEvent): Promise<void> => {
+    e.preventDefault();
+    e.stopPropagation();
+    setRequestStatus('loading');
     try {
-      await api.post(`/trips/${trip.id}/join`);
-      setHasRequested(true);
+      await api.post('/requests', { tripId: trip.id });
+      setRequestStatus('pending');
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 409) {
-        setHasRequested(true);
+        setRequestStatus('pending');
       } else {
         console.error(error);
-        const message =
-          (axios.isAxiosError(error) &&
-            (error.response?.data as { message?: string } | undefined)?.message) ||
-          (error instanceof Error ? error.message : null) ||
-          'Failed to request to join';
-        alert(message);
+        setRequestStatus('idle');
       }
-    } finally {
-      setIsJoining(false);
     }
   };
 
@@ -194,20 +188,18 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
             <span className="flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl bg-slate-100 text-slate-400 border border-slate-200 cursor-default select-none">
               Your Trip
             </span>
+          ) : requestStatus === 'pending' ? (
+            <span className="flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 cursor-default select-none">
+              Pending...
+            </span>
           ) : (
             <button
               type="button"
-              onClick={handleJoinRequest}
-              disabled={isJoining || hasRequested}
-              className={
-                `flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl transition-all duration-200 shadow-sm active:scale-95 ${
-                  hasRequested
-                    ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-default'
-                    : 'bg-sky-500 text-white hover:bg-sky-600'
-                } disabled:active:scale-100`
-              }
+              onClick={handleRequestToJoin}
+              disabled={requestStatus === 'loading'}
+              className="flex-shrink-0 text-[11px] font-semibold px-3.5 py-2 rounded-2xl transition-all duration-200 shadow-sm active:scale-95 bg-sky-500 text-white hover:bg-sky-600 disabled:opacity-60 disabled:active:scale-100"
             >
-              {isJoining ? 'Sending...' : hasRequested ? 'Pending' : 'Request to Join'}
+              {requestStatus === 'loading' ? 'Sending...' : 'Request to Join'}
             </button>
           )}
         </div>

@@ -1,5 +1,11 @@
 //Prisma Schema file. It tells PostgreSQL database exactly what tables to create.
 
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -50,10 +56,10 @@ model Request {
   trip      Trip     @relation(fields: [tripId], references: [id])
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  status    String   @default("PENDING") // Status can be: PENDING, ACCEPTED, DECLINED
+  status    RequestStatus @default(PENDING)
   message   String?
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
 
   // This strict rule prevents a user from spam-clicking "Join" on the same trip
-  @@unique([tripId, userId]) 
+  @@unique([tripId, userId])
 }

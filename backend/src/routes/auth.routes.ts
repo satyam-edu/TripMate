@@ -3,7 +3,7 @@ import { googleLogin } from '../controllers/auth.controller';
 
 const router = Router();
 
-// POST /api/auth/google  →  verify Google ID token, upsert user, return JWT
+// POST /api/auth/google  →  verify Google access token, upsert user, return JWT
 router.post('/google', googleLogin);
 
 export default router;

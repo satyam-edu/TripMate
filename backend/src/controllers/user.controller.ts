@@ -62,6 +62,39 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// PATCH /api/users/me
+// Updates the authenticated user's editable profile fields (Trust Center).
+export const updateMe = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId as string;
+    const { bio, location, socialHandle, tags } = req.body as {
+      bio?: string;
+      location?: string;
+      socialHandle?: string;
+      tags?: string[];
+    };
+
+    const clean = (v?: string) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+
+    const data: {
+      bio?: string | null;
+      location?: string | null;
+      socialHandle?: string | null;
+      tags?: string[];
+    } = {};
+    if (bio !== undefined) data.bio = clean(bio);
+    if (location !== undefined) data.location = clean(location);
+    if (socialHandle !== undefined) data.socialHandle = clean(socialHandle);
+    if (Array.isArray(tags)) data.tags = tags.slice(0, 12);
+
+    const user = await prisma.user.update({ where: { id: userId }, data });
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('[updateMe]', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
 // ── Helper ────────────────────────────────────────────────────────────────────
 function isPrismaError(error: unknown, code: string): boolean {
   return (

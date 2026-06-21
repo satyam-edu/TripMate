@@ -9,7 +9,7 @@ const VALID_STATUSES: RequestStatus[] = ['APPROVED', 'REJECTED'];
 export const createRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.userId as string;
-    const { tripId } = req.body as { tripId?: string };
+    const { tripId, message } = req.body as { tripId?: string; message?: string };
 
     if (!tripId) {
       res.status(400).json({ error: 'tripId is required.' });
@@ -27,7 +27,12 @@ export const createRequest = async (req: Request, res: Response): Promise<void> 
     }
 
     const joinRequest = await prisma.request.create({
-      data: { tripId, userId, status: 'PENDING' },
+      data: {
+        tripId,
+        userId,
+        status: 'PENDING',
+        message: typeof message === 'string' && message.trim() !== '' ? message.trim() : null,
+      },
       include: {
         user: { select: { id: true, name: true, avatar: true } },
         trip: { select: { id: true, destination: true, country: true } },

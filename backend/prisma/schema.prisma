@@ -25,6 +25,8 @@ model User {
   avatar    String?
   phone     String?  @unique
   bio       String?
+  location     String? // e.g., "Delhi, India"
+  socialHandle String? // Instagram / LinkedIn URL — social proof for trust
   tags      String[] // e.g., ["Backpacker", "Luxury"]
   trips     Trip[]   @relation("HostTrips") // Trips this user created
   requests  Request[] // Trips this user has requested to join

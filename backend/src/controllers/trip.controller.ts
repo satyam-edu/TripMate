@@ -113,7 +113,8 @@ export const getAllTrips = async (req: Request, res: Response): Promise<void> =>
           select: { id: true, name: true, avatar: true },
         },
         _count: {
-          select: { requests: true },
+          // Only APPROVED members count toward filled spots (host is added on the client).
+          select: { requests: { where: { status: 'APPROVED' } } },
         },
       },
     });
@@ -121,6 +122,46 @@ export const getAllTrips = async (req: Request, res: Response): Promise<void> =>
     res.status(200).json(trips);
   } catch (error) {
     console.error('[getAllTrips]', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
+// GET /api/trips/hosted
+// All trips hosted by the authenticated user (past + upcoming).
+export const getHostedTrips = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId as string;
+    const trips = await prisma.trip.findMany({
+      where: { hostId: userId },
+      orderBy: { startDate: 'asc' },
+      include: {
+        host: { select: { id: true, name: true, avatar: true } },
+        _count: { select: { requests: { where: { status: 'APPROVED' } } } },
+      },
+    });
+    res.status(200).json(trips);
+  } catch (error) {
+    console.error('[getHostedTrips]', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
+// GET /api/trips/joined
+// All trips where the authenticated user has an APPROVED request.
+export const getJoinedTrips = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId as string;
+    const trips = await prisma.trip.findMany({
+      where: { requests: { some: { userId, status: 'APPROVED' } } },
+      orderBy: { startDate: 'asc' },
+      include: {
+        host: { select: { id: true, name: true, avatar: true } },
+        _count: { select: { requests: { where: { status: 'APPROVED' } } } },
+      },
+    });
+    res.status(200).json(trips);
+  } catch (error) {
+    console.error('[getJoinedTrips]', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 };

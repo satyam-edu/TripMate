@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon src/server.ts",
     "build": "tsc",
-    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts",
+    "seed:demo": "ts-node --project tsconfig.json prisma/seedDemoRequests.ts"
   },
   "keywords": [],
   "author": "",

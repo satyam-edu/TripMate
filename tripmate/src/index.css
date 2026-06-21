@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Scrollbar-hide utility for horizontal scrollers */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* Full-size utility */
+.size-full { width: 100%; height: 100%; }
+
 
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */

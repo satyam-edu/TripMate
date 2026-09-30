@@ -125,6 +125,9 @@ Base URL: `/api`
 | `POST` | `/auth/google` | None | Exchange Google access token for app JWT |
 | `GET` | `/users/me` | ✅ | Current user profile |
 | `PATCH` | `/users/me` | ✅ | Update profile |
+| `PUT` | `/users/me/photo/:kind` | ✅ | Upload profile photo or cover (`kind` = `avatar` / `cover`, raw image body) |
+| `DELETE` | `/users/me/photo/:kind` | ✅ | Remove profile photo or cover |
+| `GET` | `/images/:id` | — | Serve an uploaded photo |
 | `GET` | `/trips` | optional | List all trips (richer data if logged in) |
 | `POST` | `/trips` | ✅ | Create a trip |
 | `GET` | `/trips/hosted` | ✅ | Trips you've hosted |

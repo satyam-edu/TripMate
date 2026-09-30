@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma';
+import { isUploadedImage } from './image.controller';
 
 export const googleLogin = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -42,11 +43,15 @@ export const googleLogin = async (req: Request, res: Response): Promise<void> =>
     }
 
     // ── 3. Upsert user in the database ───────────────────────────────────────
+    // Keep a photo the user uploaded themselves; otherwise refresh the Google photo.
+    const existing = await prisma.user.findUnique({ where: { googleId }, select: { avatar: true } });
+    const keepUploaded = isUploadedImage(existing?.avatar);
+
     const user = await prisma.user.upsert({
       where: { googleId },
       update: {
         name: name ?? 'Traveller',
-        avatar: avatar ?? null,
+        ...(keepUploaded ? {} : { avatar: avatar ?? null }),
       },
       create: {
         googleId,

@@ -14,6 +14,7 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
         id: true,
         name: true,
         avatar: true,
+        coverImage: true,
         bio: true,
         location: true,
         socialHandle: true,

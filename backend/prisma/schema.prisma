@@ -28,7 +28,8 @@ model User {
   googleId  String   @unique
   name      String
   gender    String?
-  avatar    String?
+  avatar    String? // Google photo URL, or an uploaded photo (/api/images/<id>)
+  coverImage String? // Uploaded profile cover (/api/images/<id>)
   phone     String?  @unique
   bio       String?
   location     String? // e.g., "Delhi, India"
@@ -124,4 +125,14 @@ model ChatRead {
   lastReadAt DateTime
 
   @@id([userId, chatKey])
+}
+
+// 7. The Image Table (uploaded profile photos and covers)
+// Stored in the database so no extra storage service is needed; served by GET /api/images/:id.
+// ponytail: fine for small, resized images; move to object storage (S3/R2/Cloudinary) if uploads grow.
+model Image {
+  id        String   @id @default(uuid())
+  data      Bytes
+  mimeType  String
+  createdAt DateTime @default(now())
 }

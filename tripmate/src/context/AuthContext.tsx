@@ -8,6 +8,7 @@ export interface AuthUser {
   googleId: string;
   name: string;
   avatar: string | null;
+  coverImage: string | null;
   bio: string | null;
   location: string | null;
   socialHandle: string | null;

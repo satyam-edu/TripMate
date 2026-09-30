@@ -11,6 +11,7 @@ import requestRoutes from './routes/request.routes';
 import authRoutes from './routes/auth.routes';
 import chatRoutes from './routes/chat.routes';
 import notificationRoutes from './routes/notification.routes';
+import imageRoutes from './routes/image.routes';
 import { initSocket } from './socket';
 
 dotenv.config();
@@ -48,7 +49,9 @@ app.use(express.json({ limit: '100kb' }));
 // Render sits behind a proxy; trust it so req.ip is the real client IP.
 app.set('trust proxy', 1);
 const isChatSend = (req: Request) => req.method === 'POST' && req.path.startsWith('/chats/');
-app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: isChatSend }));
+// Images are cached by the browser for a year, so they don't need to count against the limit.
+const isImage = (req: Request) => req.method === 'GET' && req.path.startsWith('/images/');
+app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => isChatSend(req) || isImage(req) }));
 // Stricter cap on writes (create trip / send request / login / profile edits).
 app.use('/api', (req, res, next) => {
   if (isChatSend(req)) return chatLimiter(req, res, next);
@@ -67,6 +70,7 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/images', imageRoutes);
 
 // ── 404 Fallback ─────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {

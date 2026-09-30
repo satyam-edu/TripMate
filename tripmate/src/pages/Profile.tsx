@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2 } from 'lucide-react';
+import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2 } from 'lucide-react';
+import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage } from '../services/api';
 import type { Trip } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -137,7 +138,7 @@ export default function Profile() {
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="relative">
         <div className="h-40 sm:h-52 rounded-3xl overflow-hidden bg-slate-100">
-          <img src={COVER} alt="" className="w-full h-full object-cover" />
+          <img src={user?.coverImage || COVER} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="absolute -bottom-8 left-5">
           <span className="block ring-4 ring-white rounded-full">
@@ -277,15 +278,78 @@ export default function Profile() {
   );
 }
 
+/* ── Photo upload helper ────────────────────────────────────────────────────────
+   Centre-crops and shrinks a picked photo in the browser before upload, so a 5 MB
+   phone photo becomes a ~50-200 KB JPEG. */
+const PHOTO_SIZES = { avatar: { w: 400, h: 400 }, cover: { w: 1500, h: 500 } } as const;
+type PhotoKind = keyof typeof PHOTO_SIZES;
+
+async function cropToJpeg(file: File, width: number, height: number): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.max(width / bitmap.width, height / bitmap.height);
+  const sw = width / scale;
+  const sh = height / scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext('2d')!.drawImage(bitmap, (bitmap.width - sw) / 2, (bitmap.height - sh) / 2, sw, sh, 0, 0, width, height);
+  bitmap.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode failed'))), 'image/jpeg', 0.85),
+  );
+}
+
 /* ── Edit Profile modal (Soft UI) ───────────────────────────────────────────── */
 function EditProfileModal({
   onClose,
   onSaved,
 }: {
   onClose: () => void;
-  onSaved: (partial: { bio: string | null; location: string | null; socialHandle: string | null; tags: string[] }) => void;
+  onSaved: (partial: Partial<AuthUser>) => void;
 }) {
   const { user } = useAuth();
+  // Photos upload as soon as they're picked (separate from "Save Changes").
+  const [photoBusy, setPhotoBusy] = useState<PhotoKind | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const avatarInput = useRef<HTMLInputElement>(null);
+  const coverInput = useRef<HTMLInputElement>(null);
+
+  const changePhoto = async (kind: PhotoKind, file: File | undefined) => {
+    if (!file) return;
+    setPhotoError(null);
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Please choose an image file.');
+      return;
+    }
+    setPhotoBusy(kind);
+    try {
+      let blob: Blob;
+      try {
+        blob = await cropToJpeg(file, PHOTO_SIZES[kind].w, PHOTO_SIZES[kind].h);
+      } catch {
+        throw new Error("Couldn't read that image. Try a JPEG or PNG.");
+      }
+      const { data } = await api.put<AuthUser>(`/users/me/photo/${kind}`, blob, { headers: { 'Content-Type': 'image/jpeg' } });
+      onSaved({ avatar: data.avatar, coverImage: data.coverImage });
+    } catch (err) {
+      setPhotoError(err instanceof Error && !('isAxiosError' in err) ? err.message : apiErrorMessage(err, 'Upload failed. Please try again.'));
+    } finally {
+      setPhotoBusy(null);
+    }
+  };
+
+  const removePhoto = async (kind: PhotoKind) => {
+    setPhotoError(null);
+    setPhotoBusy(kind);
+    try {
+      const { data } = await api.delete<AuthUser>(`/users/me/photo/${kind}`);
+      onSaved({ avatar: data.avatar, coverImage: data.coverImage });
+    } catch (err) {
+      setPhotoError(apiErrorMessage(err, 'Could not remove the photo. Please try again.'));
+    } finally {
+      setPhotoBusy(null);
+    }
+  };
   const [location, setLocation] = useState(user?.location ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
   const [social, setSocial] = useState(user?.socialHandle ?? '');
@@ -342,6 +406,98 @@ function EditProfileModal({
             <X size={20} />
           </button>
         </div>
+
+        {/* Cover + profile photo (upload immediately) */}
+        <input
+          ref={coverInput}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            void changePhoto('cover', e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
+        <input
+          ref={avatarInput}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            void changePhoto('avatar', e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
+
+        <div className="relative">
+          <div className="relative h-28 rounded-2xl overflow-hidden bg-slate-100">
+            <img src={user?.coverImage || COVER} alt="" className="w-full h-full object-cover" />
+            {photoBusy === 'cover' && <PhotoSpinner />}
+          </div>
+          <div className="absolute top-2 right-2 flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => coverInput.current?.click()}
+              disabled={photoBusy !== null}
+              className="flex items-center gap-1.5 rounded-full bg-slate-900/60 hover:bg-slate-900/75 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60 transition-colors"
+            >
+              <Camera size={14} /> Change cover
+            </button>
+            {user?.coverImage && (
+              <button
+                type="button"
+                onClick={() => void removePhoto('cover')}
+                disabled={photoBusy !== null}
+                aria-label="Remove cover"
+                title="Remove cover"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/60 hover:bg-red-500 backdrop-blur-sm text-white disabled:opacity-60 transition-colors"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-end gap-3 -mt-8 ml-4">
+            <button
+              type="button"
+              onClick={() => avatarInput.current?.click()}
+              disabled={photoBusy !== null}
+              aria-label="Change profile photo"
+              className="group relative rounded-full ring-4 ring-white shrink-0"
+            >
+              <Avatar src={user?.avatar ?? null} name={user?.name ?? 'Traveller'} size={72} />
+              <span className="absolute inset-0 rounded-full bg-slate-900/0 group-hover:bg-slate-900/40 transition-colors flex items-center justify-center">
+                <Camera size={18} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </span>
+              <span className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-blue-600 ring-2 ring-white flex items-center justify-center text-white">
+                <Camera size={12} />
+              </span>
+              {photoBusy === 'avatar' && <PhotoSpinner round />}
+            </button>
+            <div className="pb-1 flex items-center gap-3 text-[13px] font-semibold">
+              <button
+                type="button"
+                onClick={() => avatarInput.current?.click()}
+                disabled={photoBusy !== null}
+                className="text-blue-600 hover:text-blue-700 disabled:opacity-60"
+              >
+                Change photo
+              </button>
+              {user?.avatar && (
+                <button
+                  type="button"
+                  onClick={() => void removePhoto('avatar')}
+                  disabled={photoBusy !== null}
+                  className="text-slate-400 hover:text-red-500 disabled:opacity-60"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        {photoError && <p className="text-red-500 text-sm mt-2">{photoError}</p>}
+        <p className="text-xs text-slate-400 mt-2 mb-1">Photos update right away.</p>
 
         {/* Location */}
         <label className="block text-sm font-semibold text-slate-700 mb-1.5">Location</label>
@@ -419,6 +575,15 @@ function EditProfileModal({
         </div>
       </div>
     </div>
+  );
+}
+
+/* Spinner shown over a photo while it uploads. */
+function PhotoSpinner({ round }: { round?: boolean }) {
+  return (
+    <span className={cn('absolute inset-0 flex items-center justify-center bg-white/60', round && 'rounded-full')}>
+      <Loader2 size={22} className="animate-spin text-blue-600" />
+    </span>
   );
 }
 

@@ -132,6 +132,7 @@ Base URL: `/api`
 | `POST` | `/trips` | ✅ | Create a trip |
 | `GET` | `/trips/hosted` | ✅ | Trips you've hosted |
 | `GET` | `/trips/joined` | ✅ | Trips you've joined |
+| `GET` | `/trips/:id` | ✅ | One trip: host, who's going, and your request status |
 | `POST` | `/trips/:id/join` | ✅ | Request to join a trip |
 | `POST` | `/requests` | ✅ | Send a join request |
 | `GET` | `/requests/received` | ✅ | Requests for your hosted trips |

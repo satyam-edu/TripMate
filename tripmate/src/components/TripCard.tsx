@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import type { Trip } from '../types';
 import api, { apiErrorMessage } from '../services/api';
 import { MapPin, Calendar, Wallet, Users } from 'lucide-react';
@@ -100,9 +100,9 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
     <div className="bg-white rounded-[24px] border border-[#E2E8F0] overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_10px_36px_rgba(15,23,42,0.10)] transition-shadow">
       {/* Cover */}
       <div className="relative">
-        <div className="aspect-[16/10] bg-[#F1F5F9]">
-          <img src={coverUrl} alt={trip.destination} className="w-full h-full object-cover" loading="lazy" />
-        </div>
+        <Link to={`/trips/${trip.id}`} className="block aspect-[16/10] bg-[#F1F5F9]" tabIndex={-1} aria-hidden="true">
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+        </Link>
         {tag && (
           <span
             className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 backdrop-blur-sm', tagColor(tag))}
@@ -124,9 +124,13 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
       <div className="p-4">
         <div className="flex items-center gap-1.5 text-[#0F172A] mb-1">
           <MapPin size={16} className="text-[#2563EB] shrink-0" />
-          <span className="truncate" style={{ fontSize: 17, fontWeight: 700 }}>
+          <Link
+            to={`/trips/${trip.id}`}
+            className="truncate hover:text-[#2563EB] transition-colors"
+            style={{ fontSize: 17, fontWeight: 700 }}
+          >
             {trip.destination}
-          </span>
+          </Link>
         </div>
         <p className="text-[#94A3B8] mb-3" style={{ fontSize: 13 }}>
           {trip.country}

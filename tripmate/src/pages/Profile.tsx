@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2 } from 'lucide-react';
 import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage } from '../services/api';
@@ -608,9 +608,9 @@ function ProfileTripCard({
   return (
     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)]">
       <div className="relative">
-        <div className="aspect-[16/10] bg-slate-100">
-          <img src={coverUrl} alt={trip.destination} className="w-full h-full object-cover" loading="lazy" />
-        </div>
+        <Link to={`/trips/${trip.id}`} className="block aspect-[16/10] bg-slate-100" tabIndex={-1} aria-hidden="true">
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+        </Link>
         {tag && (
           <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', tagColor(tag))}>
             {tag}
@@ -625,7 +625,9 @@ function ProfileTripCard({
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
             <MapPin size={16} className="text-blue-600 shrink-0" />
-            <span className="text-[17px] font-bold truncate">{trip.destination}</span>
+            <Link to={`/trips/${trip.id}`} className="text-[17px] font-bold truncate hover:text-blue-600 transition-colors">
+              {trip.destination}
+            </Link>
           </div>
           <span
             className={cn(

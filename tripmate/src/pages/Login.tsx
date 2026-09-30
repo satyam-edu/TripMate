@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { ShieldCheck } from 'lucide-react';
 import api from '../services/api';
@@ -9,6 +9,7 @@ import type { AuthUser } from '../context/AuthContext';
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +23,8 @@ export default function Login() {
           token: tokenResponse.access_token,
         });
         login(data.token, data.user);
-        navigate('/');
+        // Back to the page they were trying to open (e.g. a shared trip link).
+        navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true });
       } catch (err) {
         console.error('Backend rejection:', err);
         setError('Sign-in failed. Please try again.');

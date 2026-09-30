@@ -192,6 +192,39 @@ export const getAllTrips = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
+// GET /api/trips/:id
+// One trip's detail page: host card, who's going, and the viewer's own request (if any).
+export const getTrip = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params['id'] as string;
+    const userId = req.userId as string;
+    const [trip, myRequest] = await Promise.all([
+      prisma.trip.findUnique({
+        where: { id },
+        include: {
+          host: { select: { id: true, name: true, avatar: true, bio: true, location: true, socialHandle: true } },
+          requests: {
+            where: { status: 'APPROVED' },
+            orderBy: { createdAt: 'asc' },
+            select: { user: { select: { id: true, name: true, avatar: true } } },
+          },
+        },
+      }),
+      prisma.request.findUnique({ where: { tripId_userId: { tripId: id, userId } }, select: { id: true, status: true } }),
+    ]);
+    if (!trip) {
+      res.status(404).json({ error: 'Trip not found.' });
+      return;
+    }
+
+    const { requests, ...rest } = trip;
+    res.status(200).json({ ...rest, members: requests.map((r) => r.user), myRequest });
+  } catch (error) {
+    console.error('[getTrip]', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
 // GET /api/trips/hosted
 // All trips hosted by the authenticated user (past + upcoming).
 export const getHostedTrips = async (req: Request, res: Response): Promise<void> => {

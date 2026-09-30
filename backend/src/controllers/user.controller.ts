@@ -1,49 +1,24 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
-
-// POST /api/users
-// Creates a new user. Takes googleId, name, and optionally phone/gender/avatar/bio/tags.
-export const createUser = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { googleId, name, phone, gender, avatar, bio, tags } = req.body;
-
-    if (!googleId || !name) {
-      res.status(400).json({ error: 'googleId and name are required.' });
-      return;
-    }
-
-    const user = await prisma.user.create({
-      data: {
-        googleId,
-        name,
-        phone: phone ?? null,
-        gender: gender ?? null,
-        avatar: avatar ?? null,
-        bio: bio ?? null,
-        tags: tags ?? [],
-      },
-    });
-
-    res.status(201).json(user);
-  } catch (error: unknown) {
-    if (isPrismaError(error, 'P2002')) {
-      res.status(409).json({ error: 'A user with this googleId or phone already exists.' });
-      return;
-    }
-    console.error('[createUser]', error);
-    res.status(500).json({ error: 'Internal server error.' });
-  }
-};
+import { isValidTags } from '../utils';
 
 // GET /api/users/:id
-// Fetches a user by their ID, including all trips they have hosted.
+// Public profile: only safe fields (no phone / googleId / gender) + hosted trips.
 export const getUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params['id'] as string;
 
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        bio: true,
+        location: true,
+        socialHandle: true,
+        tags: true,
+        createdAt: true,
         trips: {
           orderBy: { startDate: 'asc' },
         },
@@ -74,6 +49,15 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
       tags?: string[];
     };
 
+    if ((bio?.length ?? 0) > 500 || (location?.length ?? 0) > 100 || (socialHandle?.length ?? 0) > 200) {
+      res.status(400).json({ error: 'One or more fields are too long.' });
+      return;
+    }
+    if (tags !== undefined && !isValidTags(tags)) {
+      res.status(400).json({ error: 'tags must be up to 12 short text values.' });
+      return;
+    }
+
     const clean = (v?: string) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
 
     const data: {
@@ -85,7 +69,7 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
     if (bio !== undefined) data.bio = clean(bio);
     if (location !== undefined) data.location = clean(location);
     if (socialHandle !== undefined) data.socialHandle = clean(socialHandle);
-    if (Array.isArray(tags)) data.tags = tags.slice(0, 12);
+    if (tags !== undefined) data.tags = tags;
 
     const user = await prisma.user.update({ where: { id: userId }, data });
     res.status(200).json(user);
@@ -94,13 +78,3 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 };
-
-// ── Helper ────────────────────────────────────────────────────────────────────
-function isPrismaError(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: string }).code === code
-  );
-}

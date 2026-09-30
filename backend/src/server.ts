@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { rateLimit } from 'express-rate-limit';
 
 import userRoutes from './routes/user.routes';
 import tripRoutes from './routes/trip.routes';
@@ -12,6 +13,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const writeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30 });
 
 // ── Core Middlewares ─────────────────────────────────────────────────────────
 app.use(helmet());
@@ -34,7 +36,14 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
+
+// ── Rate Limiting (per IP) ───────────────────────────────────────────────────
+// Render sits behind a proxy; trust it so req.ip is the real client IP.
+app.set('trust proxy', 1);
+app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
+// Stricter cap on writes (create trip / send request / login / profile edits).
+app.use('/api', (req, res, next) => (req.method === 'GET' ? next() : writeLimiter(req, res, next)));
 
 // ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req: Request, res: Response) => {

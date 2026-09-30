@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
+import { isValidTags } from '../utils';
 
 // POST /api/trips
 // Creates a new trip owned by the authenticated user (hostId comes from JWT).
@@ -16,7 +17,6 @@ interface CreateTripBody {
 }
 
 export const createTrip = async (req: Request, res: Response): Promise<void> => {
-  console.log('INCOMING TRIP DATA:', req.body);
   try {
     const hostId = req.userId;
     if (!hostId) {
@@ -40,6 +40,20 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
       res.status(400).json({
         error: 'destination, country, startDate, endDate, budget, and maxGuests are required.',
       });
+      return;
+    }
+
+    if (
+      destination.length > 100 ||
+      country.length > 100 ||
+      (description?.length ?? 0) > 2000 ||
+      (coverImage?.length ?? 0) > 1000
+    ) {
+      res.status(400).json({ error: 'One or more fields are too long.' });
+      return;
+    }
+    if (tags !== undefined && !isValidTags(tags)) {
+      res.status(400).json({ error: 'tags must be up to 12 short text values.' });
       return;
     }
 
@@ -78,7 +92,7 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
         endDate:     parsedEnd,
         budget:      budgetInt,
         maxGuests:   guestsInt,
-        tags:        Array.isArray(tags) ? tags : [],
+        tags:        tags ?? [],
         coverImage:  finalCoverImage,
         description: description && description.trim() !== '' ? description.trim() : null,
       },

@@ -4,19 +4,26 @@ import { prisma } from '../config/prisma';
 
 export const googleLogin = async (req: Request, res: Response): Promise<void> => {
   try {
-    // ── Diagnostic Log: Let's see exactly what the frontend sent ──
-    console.log('FRONTEND PAYLOAD:', req.body);
+    // Google access token from useGoogleLogin on the frontend
+    const token = req.body.token;
 
-    // Grab the token, no matter what the IDE Agent named it
-    const token = req.body.idToken || req.body.access_token || req.body.token || req.body.credential || req.body.code;
-
-    if (!token) {
+    if (typeof token !== 'string' || !token) {
       res.status(400).json({ error: 'No token provided by frontend.' });
       return;
     }
 
-    // ── 1. Fetch user profile directly from Google ───────────────────────────
-    // This endpoint accepts Access Tokens seamlessly without the strict JWT crash
+    // ── 1. Make sure the token was issued to OUR Google client ───────────────
+    // Without this, an access token issued to any other app would log the user in here.
+    const infoRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`
+    );
+    const info = infoRes.ok ? ((await infoRes.json()) as { aud?: string }) : null;
+    if (!info || !process.env.GOOGLE_CLIENT_ID || info.aud !== process.env.GOOGLE_CLIENT_ID) {
+      res.status(401).json({ error: 'Invalid Google token.' });
+      return;
+    }
+
+    // ── 2. Fetch user profile directly from Google ───────────────────────────
     const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -29,8 +36,12 @@ export const googleLogin = async (req: Request, res: Response): Promise<void> =>
 
     const payload = await response.json() as any;
     const { sub: googleId, name, picture: avatar } = payload;
+    if (!googleId) {
+      res.status(401).json({ error: 'Invalid Google token.' });
+      return;
+    }
 
-    // ── 2. Upsert user in the database ───────────────────────────────────────
+    // ── 3. Upsert user in the database ───────────────────────────────────────
     const user = await prisma.user.upsert({
       where: { googleId },
       update: {
@@ -44,15 +55,15 @@ export const googleLogin = async (req: Request, res: Response): Promise<void> =>
       },
     });
 
-    // ── 3. Sign a JWT ────────────────────────────────────────────────────────
+    // ── 4. Sign a JWT ────────────────────────────────────────────────────────
     const jwtSecret = process.env.JWT_SECRET as string;
     const appToken = jwt.sign(
       { userId: user.id },
       jwtSecret,
-      { expiresIn: '30d' }
+      { expiresIn: '7d' }
     );
 
-    // ── 4. Return token + user profile to the frontend ───────────────────────
+    // ── 5. Return token + user profile to the frontend ───────────────────────
     res.status(200).json({ token: appToken, user });
   } catch (error) {
     console.error('[googleLogin]', error);

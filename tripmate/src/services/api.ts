@@ -16,4 +16,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// ── Response Interceptor ──────────────────────────────────────────────────────
+// Expired/invalid JWT → clear the session and send the user back to /login.
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401 && localStorage.getItem('tripmate_token')) {
+      localStorage.removeItem('tripmate_token');
+      localStorage.removeItem('tripmate_user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

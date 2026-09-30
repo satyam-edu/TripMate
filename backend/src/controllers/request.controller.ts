@@ -16,6 +16,11 @@ export const createRequest = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    if (typeof message === 'string' && message.length > 500) {
+      res.status(400).json({ error: 'Message must be 500 characters or less.' });
+      return;
+    }
+
     const trip = await prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) {
       res.status(404).json({ error: 'Trip not found.' });
@@ -117,6 +122,20 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Only the host of the trip may approve/reject its requests.
+    const existing = await prisma.request.findUnique({
+      where: { id },
+      include: { trip: { select: { hostId: true } } },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Request not found.' });
+      return;
+    }
+    if (existing.trip.hostId !== req.userId) {
+      res.status(403).json({ error: 'Only the trip host can update this request.' });
+      return;
+    }
+
     const updatedRequest = await prisma.request.update({
       where: { id },
       data: { status },
@@ -124,10 +143,6 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
 
     res.status(200).json(updatedRequest);
   } catch (error: unknown) {
-    if (isPrismaError(error, 'P2025')) {
-      res.status(404).json({ error: 'Request not found.' });
-      return;
-    }
     console.error('[updateRequestStatus]', error);
     res.status(500).json({ error: 'Internal server error.' });
   }

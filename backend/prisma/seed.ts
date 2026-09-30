@@ -71,7 +71,7 @@ async function main(): Promise<void> {
         maxGuests: 4,
         tags: ['Culture', 'Sightseeing', 'Photography'],
         coverImage: cover('1599661046289-e31897846e41'),
-        description: 'City of Lakes — palaces, boat rides, and golden-hour photo walks.',
+        description: 'City of Lakes: palaces, boat rides, and golden-hour photo walks.',
       },
       {
         hostId: kabir.id,

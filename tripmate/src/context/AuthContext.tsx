@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import api from '../services/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AuthUser {
@@ -43,6 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser) as AuthUser);
+      // Refresh the cached profile from the server in the background.
+      api
+        .get<AuthUser>('/users/me')
+        .then(({ data }) => {
+          localStorage.setItem(USER_KEY, JSON.stringify(data));
+          setUser(data);
+        })
+        .catch(() => {}); // 401 is handled by the api interceptor; offline → keep cached copy
     }
     setIsLoading(false);
   }, []);

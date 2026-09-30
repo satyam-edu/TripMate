@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import type { Trip } from '../types';
-import api from '../services/api';
+import api, { apiErrorMessage } from '../services/api';
 import { MapPin, Calendar, Wallet, Users } from 'lucide-react';
 import { Avatar, cn, tagColor, formatDateRange, formatBudget } from './ui-bits';
 
@@ -23,8 +22,13 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
   const hostFirstName = trip.host.name.split(' ')[0];
 
   // ── State ────────────────────────────────────────────────────────────────────
-  const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'pending'>('idle');
+  // Start from the user's existing request on this trip (sent by the feed API), if any.
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'PENDING' | 'APPROVED' | 'REJECTED'>(
+    trip.requests?.[0]?.status ?? 'idle',
+  );
+  const isFull = spotsFilled >= spotsTotal;
   const [pitchMessage, setPitchMessage] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
 
   // Modal open state lives in the URL (?modal=askToJoin&tripId=…) so the hardware
@@ -45,6 +49,7 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
 
   const openModal = () => {
     setPitchMessage('');
+    setSubmitError(null);
     setSearchParams((prev) => {
       const p = new URLSearchParams(prev);
       p.set('modal', 'askToJoin');
@@ -79,20 +84,15 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
         tripId: trip.id,
         message: pitchMessage.trim() || undefined,
       });
-      setRequestStatus('pending');
+      setRequestStatus('PENDING');
       setPitchMessage('');
       closeModal();
       setShowToast(true);
       window.setTimeout(() => setShowToast(false), 2500);
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 409) {
-        // Already requested — treat as pending and close.
-        setRequestStatus('pending');
-        closeModal();
-      } else {
-        console.error(error);
-        setRequestStatus('idle');
-      }
+      console.error(error);
+      setRequestStatus('idle');
+      setSubmitError(apiErrorMessage(error, 'Could not send request. Please try again.'));
     }
   };
 
@@ -158,12 +158,24 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
             >
               Your trip
             </span>
-          ) : requestStatus === 'pending' ? (
+          ) : requestStatus === 'PENDING' || requestStatus === 'APPROVED' || requestStatus === 'REJECTED' ? (
             <span
-              className="shrink-0 rounded-full px-4 py-2 bg-[#EFF6FF] text-[#2563EB] select-none"
+              className={cn(
+                'shrink-0 rounded-full px-4 py-2 select-none',
+                requestStatus === 'PENDING' && 'bg-[#EFF6FF] text-[#2563EB]',
+                requestStatus === 'APPROVED' && 'bg-emerald-50 text-emerald-600',
+                requestStatus === 'REJECTED' && 'bg-red-50 text-red-500',
+              )}
               style={{ fontSize: 14, fontWeight: 600 }}
             >
-              Pending
+              {{ PENDING: 'Pending', APPROVED: 'Going', REJECTED: 'Declined' }[requestStatus]}
+            </span>
+          ) : isFull ? (
+            <span
+              className="shrink-0 rounded-full px-4 py-2 bg-[#F1F5F9] text-[#64748B] select-none"
+              style={{ fontSize: 14, fontWeight: 600 }}
+            >
+              Full
             </span>
           ) : (
             <button
@@ -185,7 +197,7 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
           <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6">
             <h3 className="text-lg font-bold text-slate-900">Ask to Join {trip.destination}</h3>
             <p className="text-slate-500 text-sm mt-1">
-              Send a quick note to {hostFirstName} — a good pitch helps your chances.
+              Send a quick note to {hostFirstName}. A good pitch helps your chances.
             </p>
 
             <textarea
@@ -193,9 +205,11 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
               onChange={(e) => setPitchMessage(e.target.value)}
               rows={4}
               maxLength={300}
-              placeholder="Add a message for the host (optional) — e.g., 'Hey! I have a DSLR and would love to join this trek!'"
+              placeholder="Add a message for the host (optional), e.g., 'Hey! I have a DSLR and would love to join this trek!'"
               className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 resize-none"
             />
+
+            {submitError && <p className="text-red-500 text-sm mt-3">{submitError}</p>}
 
             <div className="flex justify-end gap-3 mt-5">
               <button

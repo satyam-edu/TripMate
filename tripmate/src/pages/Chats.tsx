@@ -50,7 +50,7 @@ const CONVERSATIONS: Conversation[] = [
     title: 'Spiti Valley',
     headerSubtitle: '4/6 travelers · 12–19 Jul',
     image: COVER.spiti,
-    lastMessage: 'Booked the tempo traveller — sharing details soon!',
+    lastMessage: 'Booked the tempo traveller, sharing details soon!',
     time: '2:14 PM',
     unread: 2,
     messages: [
@@ -58,7 +58,7 @@ const CONVERSATIONS: Conversation[] = [
       { id: 'm2', fromMe: true, text: "Same here! What's the plan for day 1?", time: '1:42 PM' },
       { id: 'm3', fromMe: false, authorName: 'Rohan', authorAvatar: FACE.rohan, text: "We'll acclimatize at Kaza, then Key Monastery.", time: '1:45 PM' },
       { id: 'm4', fromMe: true, text: "Perfect. I'll carry a power bank and meds.", time: '1:48 PM' },
-      { id: 'm5', fromMe: false, authorName: 'Rohan', authorAvatar: FACE.rohan, text: 'Booked the tempo traveller — sharing details soon!', time: '2:14 PM' },
+      { id: 'm5', fromMe: false, authorName: 'Rohan', authorAvatar: FACE.rohan, text: 'Booked the tempo traveller, sharing details soon!', time: '2:14 PM' },
     ],
   },
   {
@@ -261,7 +261,7 @@ export default function Chats() {
         >
           {active ? (
             <>
-              {/* Header — locked at the top */}
+              {/* Header: locked at the top */}
               <div className="flex items-center gap-3 p-4 border-b border-slate-200 shrink-0">
                 <button type="button" onClick={closeChat} className="lg:hidden text-slate-500" aria-label="Back">
                   <ChevronLeft size={22} />
@@ -279,7 +279,7 @@ export default function Chats() {
                 </button>
               </div>
 
-              {/* Message list — the ONLY scrollable region */}
+              {/* Message list: the ONLY scrollable region */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
                 {active.messages.map((m) => (
                   <div key={m.id} className={cn('flex gap-2 items-end', m.fromMe ? 'justify-end' : 'justify-start')}>
@@ -306,7 +306,7 @@ export default function Chats() {
                 ))}
               </div>
 
-              {/* Input — locked at the bottom */}
+              {/* Input: locked at the bottom */}
               <div className="p-3 border-t border-slate-200 flex items-center gap-2 shrink-0">
                 <input
                   value={draft}

@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 /**
  * Demo helper for a single-account walkthrough.
  * After you log in (Google) and post a trip, run `npm run seed:demo` to drop a
- * few PENDING join requests from seed users onto your newest trip — so you can
+ * few PENDING join requests from seed users onto your newest trip, so you can
  * click Accept / Decline in the Requests → Received tab.
  */
 async function main(): Promise<void> {
@@ -53,7 +53,7 @@ async function main(): Promise<void> {
       });
       created++;
     } catch {
-      // Unique (tripId, userId) conflict — this user already requested. Skip.
+      // Unique (tripId, userId) conflict: this user already requested. Skip.
     }
   }
 

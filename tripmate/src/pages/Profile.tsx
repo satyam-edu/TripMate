@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut } from 'lucide-react';
-import api from '../services/api';
+import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2 } from 'lucide-react';
+import api, { apiErrorMessage } from '../services/api';
 import type { Trip } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, Skeleton, tagColor, formatDateRange, formatBudget, cn } from '../components/ui-bits';
@@ -108,6 +108,19 @@ export default function Profile() {
     void fetchTrips();
   }, []);
 
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+
+  const deleteTrip = async (trip: Trip) => {
+    if (!window.confirm(`Delete your ${trip.destination} trip? Everyone who asked to join will lose their request.`)) return;
+    try {
+      await api.delete(`/trips/${trip.id}`);
+      setHosted((rows) => rows.filter((t) => t.id !== trip.id));
+    } catch (err) {
+      console.error('[Profile] delete trip failed', err);
+      window.alert(apiErrorMessage(err, 'Could not delete the trip. Please try again.'));
+    }
+  };
+
   const name = user?.name ?? 'Traveller';
   const vibes = user?.tags?.length ? user.tags : ['Mountains', 'Photography', 'Slow travel'];
   const list = tab === 'hosted' ? hosted : joined;
@@ -155,7 +168,7 @@ export default function Profile() {
             >
               <Pencil size={15} /> Edit Profile
             </button>
-            {/* Mobile-only sign out — the sidebar handles logout on desktop (lg+) */}
+            {/* Mobile-only sign out; the sidebar handles logout on desktop (lg+) */}
             <button
               onClick={handleLogout}
               title="Sign out"
@@ -168,7 +181,7 @@ export default function Profile() {
         </div>
 
         <p className="text-slate-600 text-sm mt-4 leading-relaxed">
-          {user?.bio ?? 'Adventurer at heart — here to find a travel tribe and explore India together.'}
+          {user?.bio ?? 'Adventurer at heart, here to find a travel tribe and explore India together.'}
         </p>
 
         {/* Trust signal: social proof link */}
@@ -234,7 +247,13 @@ export default function Profile() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {list.map((trip) => (
-                <ProfileTripCard key={trip.id} trip={trip} kind={tab} />
+                <ProfileTripCard
+                  key={trip.id}
+                  trip={trip}
+                  kind={tab}
+                  onEdit={() => setEditingTrip(trip)}
+                  onDelete={() => deleteTrip(trip)}
+                />
               ))}
             </div>
           ))}
@@ -242,6 +261,18 @@ export default function Profile() {
 
       {/* ── Edit Profile modal ──────────────────────────────────────────────── */}
       {isEditOpen && <EditProfileModal onClose={closeEdit} onSaved={updateUser} />}
+
+      {/* ── Edit Trip modal ─────────────────────────────────────────────────── */}
+      {editingTrip && (
+        <EditTripModal
+          trip={editingTrip}
+          onClose={() => setEditingTrip(null)}
+          onSaved={(updated) => {
+            setHosted((rows) => rows.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+            setEditingTrip(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -391,8 +422,18 @@ function EditProfileModal({
   );
 }
 
-/* ── Compact trip card (dashboard — no Join button) ─────────────────────────── */
-function ProfileTripCard({ trip, kind }: { trip: Trip; kind: ProfileTab }) {
+/* ── Compact trip card (dashboard, no Join button) ─────────────────────────── */
+function ProfileTripCard({
+  trip,
+  kind,
+  onEdit,
+  onDelete,
+}: {
+  trip: Trip;
+  kind: ProfileTab;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const coverUrl =
     trip.coverImage ||
     `https://loremflickr.com/600/400/${encodeURIComponent(trip.destination.split(',')[0]?.trim() ?? 'travel')}/travel`;
@@ -438,6 +479,154 @@ function ProfileTripCard({ trip, kind }: { trip: Trip; kind: ProfileTab }) {
           <span className="flex items-center gap-1.5">
             <Wallet size={14} /> {formatBudget(trip.budget)}
           </span>
+        </div>
+        {kind === 'hosted' && (
+          <div className="flex gap-2 mt-4">
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex items-center gap-1.5 border border-slate-200 text-slate-600 rounded-full px-4 py-1.5 text-[13px] font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
+            >
+              <Pencil size={13} /> Edit
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex items-center gap-1.5 border border-slate-200 text-slate-600 rounded-full px-4 py-1.5 text-[13px] font-semibold hover:border-red-500 hover:text-red-500 transition-colors"
+            >
+              <Trash2 size={13} /> Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Edit Trip modal ────────────────────────────────────────────────────────── */
+function EditTripModal({
+  trip,
+  onClose,
+  onSaved,
+}: {
+  trip: Trip;
+  onClose: () => void;
+  onSaved: (updated: Trip) => void;
+}) {
+  const [destination, setDestination] = useState(trip.destination);
+  const [country, setCountry] = useState(trip.country);
+  const [startDate, setStartDate] = useState(trip.startDate.slice(0, 10)); // yyyy-mm-dd
+  const [endDate, setEndDate] = useState(trip.endDate.slice(0, 10));
+  const [budget, setBudget] = useState(String(trip.budget));
+  const [maxGuests, setMaxGuests] = useState(String(trip.maxGuests));
+  const [description, setDescription] = useState(trip.description ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Lock background scroll while open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const { data } = await api.patch<Trip>(`/trips/${trip.id}`, {
+        destination: destination.trim(),
+        country: country.trim(),
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
+        budget: Number(budget),
+        maxGuests: Number(maxGuests),
+        tags: trip.tags,
+        coverImage: trip.coverImage ?? '',
+        description,
+      });
+      onSaved(data);
+    } catch (err) {
+      console.error('[Profile] edit trip failed', err);
+      setError(apiErrorMessage(err, 'Could not save changes. Please try again.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const input =
+    'w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 transition-colors';
+  const label = 'block text-sm font-semibold text-slate-700 mt-4 mb-1.5';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/50" onClick={onClose} />
+      <div className="relative w-full max-w-md max-h-[88vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-xl font-extrabold text-slate-900">Edit Trip</h2>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <label className={label}>Destination</label>
+        <input value={destination} onChange={(e) => setDestination(e.target.value)} maxLength={100} className={input} />
+
+        <label className={label}>Region / Country</label>
+        <input value={country} onChange={(e) => setCountry(e.target.value)} maxLength={100} className={input} />
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={label}>Start date</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={input} />
+          </div>
+          <div>
+            <label className={label}>End date</label>
+            <input type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} className={input} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={label}>Budget (₹)</label>
+            <input type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} className={input} />
+          </div>
+          <div>
+            <label className={label}>Group size</label>
+            <input type="number" min={1} value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)} className={input} />
+          </div>
+        </div>
+
+        <label className={label}>Description</label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          className={`${input} resize-none`}
+        />
+
+        {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+
+        <div className="flex justify-end gap-3 mt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="px-5 py-2.5 rounded-full border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+          >
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
         </div>
       </div>
     </div>

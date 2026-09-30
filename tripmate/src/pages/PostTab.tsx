@@ -4,7 +4,7 @@ import {
   MapPin, Calendar, Users, Wallet, ChevronLeft, ChevronRight, Minus, Plus, Check,
   Mountain, Landmark, Waves, UtensilsCrossed, Sun, Music, Camera, ShoppingBag,
 } from 'lucide-react';
-import api from '../services/api';
+import api, { apiErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, tagColor, formatDateRange, formatBudget } from '../components/ui-bits';
 
@@ -31,7 +31,7 @@ const PREVIEW_COVER =
   'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=800&h=600&fit=crop&auto=format';
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   POST TAB  (V2 design — translated to Tailwind, real engine grafted in)
+   POST TAB  (V2 design, translated to Tailwind, real engine grafted in)
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function PostTab() {
   const { user } = useAuth();
@@ -61,7 +61,7 @@ export default function PostTab() {
   const toggleVibe = (v: string) =>
     setVibes((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
 
-  /* ── Publish (real axios POST /trips — preserved) ──────────────────────────── */
+  /* ── Publish (real axios POST /trips, preserved) ──────────────────────────── */
   const handlePublish = async () => {
     setErrorMessage(null);
 
@@ -91,7 +91,7 @@ export default function PostTab() {
       setPublished(true);
     } catch (err: unknown) {
       console.error('[PostTab] publish failed', err);
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to publish trip.');
+      setErrorMessage(apiErrorMessage(err, 'Failed to publish trip.'));
     } finally {
       setIsPublishing(false);
     }
@@ -152,7 +152,7 @@ export default function PostTab() {
   /* ── Main ──────────────────────────────────────────────────────────────────── */
   return (
     <div className="pb-28 lg:pb-10">
-      {/* Header — floats directly on the page background (no card) */}
+      {/* Header: floats directly on the page background (no card) */}
       <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-1">Post a Trip</h1>
       <p className="text-slate-500 mb-6 text-[15px]">Plan your route and gather companions to join you.</p>
 
@@ -177,7 +177,7 @@ export default function PostTab() {
             STEP {step + 1} OF 4 · {STEP_LABELS[step]}
           </p>
 
-          {/* Step 0 — Destination */}
+          {/* Step 0: Destination */}
           {step === 0 && (
             <div>
               <Label icon={<MapPin size={18} />} required>Where are you headed?</Label>
@@ -213,7 +213,7 @@ export default function PostTab() {
             </div>
           )}
 
-          {/* Step 1 — Dates */}
+          {/* Step 1: Dates */}
           {step === 1 && (
             <div>
               <Label icon={<Calendar size={18} />} required>Select your travel dates</Label>
@@ -228,7 +228,7 @@ export default function PostTab() {
             </div>
           )}
 
-          {/* Step 2 — Group & Budget */}
+          {/* Step 2: Group & Budget */}
           {step === 2 && (
             <div>
               <Label icon={<Users size={18} />} required>How many travelers?</Label>
@@ -260,7 +260,7 @@ export default function PostTab() {
             </div>
           )}
 
-          {/* Step 3 — Details (vibes + category tag) */}
+          {/* Step 3: Details (vibes + category tag) */}
           {step === 3 && (
             <div>
               <Label icon={<Mountain size={18} />}>What's the vibe?</Label>

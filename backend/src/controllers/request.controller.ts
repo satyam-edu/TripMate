@@ -21,13 +21,24 @@ export const createRequest = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { _count: { select: { requests: { where: { status: 'APPROVED' } } } } },
+    });
     if (!trip) {
       res.status(404).json({ error: 'Trip not found.' });
       return;
     }
     if (trip.hostId === userId) {
       res.status(400).json({ error: 'You cannot request to join your own trip.' });
+      return;
+    }
+    if (trip.startDate <= new Date()) {
+      res.status(400).json({ error: 'This trip has already started.' });
+      return;
+    }
+    if (isFull(trip.maxGuests, trip._count.requests)) {
+      res.status(400).json({ error: 'This trip is already full.' });
       return;
     }
 
@@ -125,7 +136,15 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
     // Only the host of the trip may approve/reject its requests.
     const existing = await prisma.request.findUnique({
       where: { id },
-      include: { trip: { select: { hostId: true } } },
+      include: {
+        trip: {
+          select: {
+            hostId: true,
+            maxGuests: true,
+            _count: { select: { requests: { where: { status: 'APPROVED' } } } },
+          },
+        },
+      },
     });
     if (!existing) {
       res.status(404).json({ error: 'Request not found.' });
@@ -133,6 +152,16 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
     }
     if (existing.trip.hostId !== req.userId) {
       res.status(403).json({ error: 'Only the trip host can update this request.' });
+      return;
+    }
+    // ponytail: count-then-update isn't atomic; two approvals in the same instant could
+    // overbook by one. Move into a serializable transaction if that ever matters.
+    if (
+      status === 'APPROVED' &&
+      existing.status !== 'APPROVED' &&
+      isFull(existing.trip.maxGuests, existing.trip._count.requests)
+    ) {
+      res.status(400).json({ error: 'This trip is already full.' });
       return;
     }
 
@@ -148,7 +177,36 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
   }
 };
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// DELETE /api/requests/:id
+// The requester cancels a pending request, or leaves a trip they were approved for.
+// Declined requests can't be deleted, otherwise a declined user could just ask again.
+export const cancelRequest = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params['id'] as string;
+    const existing = await prisma.request.findUnique({ where: { id } });
+    if (!existing || existing.userId !== req.userId) {
+      res.status(404).json({ error: 'Request not found.' });
+      return;
+    }
+    if (existing.status === 'REJECTED') {
+      res.status(400).json({ error: 'A declined request cannot be cancelled.' });
+      return;
+    }
+
+    await prisma.request.delete({ where: { id } });
+    res.status(204).end();
+  } catch (error) {
+    console.error('[cancelRequest]', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+// Host takes one spot, so the trip is full when approved + 1 >= maxGuests.
+function isFull(maxGuests: number, approvedCount: number): boolean {
+  return approvedCount + 1 >= maxGuests;
+}
+
 function isPrismaError(error: unknown, code: string): boolean {
   return (
     typeof error === 'object' &&

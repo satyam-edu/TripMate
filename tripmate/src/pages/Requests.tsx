@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Inbox, MapPin } from 'lucide-react';
-import api from '../services/api';
+import api, { apiErrorMessage } from '../services/api';
 import { Avatar, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
 
 /* ── Types (match backend payloads) ─────────────────────────────────────────── */
@@ -46,7 +46,7 @@ function fmtDate(iso: string): string {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   REQUESTS  (V2 design — real data, Accept/Decline wired to PATCH /requests/:id)
+   REQUESTS  (V2 design, real data, Accept/Decline wired to PATCH /requests/:id)
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function Requests() {
   // Tab is synced to the URL (?tab=received | ?tab=sent).
@@ -88,7 +88,24 @@ export default function Requests() {
       setReceived((rows) => rows.filter((r) => r.id !== id));
     } catch (error) {
       console.error('[Requests] action failed', error);
+      window.alert(apiErrorMessage(error, 'Something went wrong. Please try again.'));
       setActing((a) => ({ ...a, [id]: false }));
+    }
+  };
+
+  // Requester withdraws a pending request, or leaves a trip they were approved for.
+  const handleCancel = async (r: SentRequest) => {
+    const question =
+      r.status === 'APPROVED' ? `Leave the ${r.trip.destination} trip?` : `Cancel your request for ${r.trip.destination}?`;
+    if (!window.confirm(question)) return;
+    setActing((a) => ({ ...a, [r.id]: true }));
+    try {
+      await api.delete(`/requests/${r.id}`);
+      setSent((rows) => rows.filter((x) => x.id !== r.id));
+    } catch (error) {
+      console.error('[Requests] cancel failed', error);
+      window.alert(apiErrorMessage(error, 'Something went wrong. Please try again.'));
+      setActing((a) => ({ ...a, [r.id]: false }));
     }
   };
 
@@ -193,14 +210,26 @@ export default function Requests() {
                     {fmtDate(r.trip.startDate)} · Hosted by {r.trip.host.name.split(' ')[0]}
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    'rounded-full px-4 py-1.5 text-[13px] font-semibold shrink-0',
-                    statusStyle[r.status] ?? 'bg-slate-100 text-slate-500',
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <span
+                    className={cn(
+                      'rounded-full px-4 py-1.5 text-[13px] font-semibold',
+                      statusStyle[r.status] ?? 'bg-slate-100 text-slate-500',
+                    )}
+                  >
+                    {statusLabel[r.status] ?? r.status}
+                  </span>
+                  {r.status !== 'REJECTED' && (
+                    <button
+                      type="button"
+                      disabled={acting[r.id]}
+                      onClick={() => handleCancel(r)}
+                      className="text-[12px] font-semibold text-slate-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                    >
+                      {r.status === 'APPROVED' ? 'Leave trip' : 'Cancel'}
+                    </button>
                   )}
-                >
-                  {statusLabel[r.status] ?? r.status}
-                </span>
+                </div>
               </div>
             ))}
           </div>

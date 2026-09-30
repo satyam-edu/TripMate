@@ -11,7 +11,7 @@ import { Search, Bell, Compass, UserPlus, Check, MessageCircle, X } from 'lucide
 /* ── Categories (client-side filter over trip.tags) ─────────────────────────── */
 const CATEGORIES = ['Mountains', 'Beaches', 'Culture', 'Adventure', 'Wildlife', 'Road Trip'] as const;
 
-/* ── Mock content (no API yet — same as prior Home) ─────────────────────────── */
+/* ── Mock content (no API yet, same as prior Home) ─────────────────────────── */
 const TRENDING: { name: string; image: string }[] = [
   { name: 'Goa', image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=200&h=200&fit=crop&auto=format' },
   { name: 'Manali', image: 'https://images.unsplash.com/photo-1593181629936-11c609b8db9b?w=200&h=200&fit=crop&auto=format' },
@@ -165,7 +165,7 @@ function HomeFeed({
         )}
       </div>
 
-      {/* Hero — hidden while searching */}
+      {/* Hero: hidden while searching */}
       {!isSearching && (
         <div className="relative overflow-hidden rounded-3xl mb-7 bg-[#0F172A] lg:min-h-[220px] flex items-end">
           <img src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
@@ -203,7 +203,7 @@ function HomeFeed({
 
       {view === 'ready' && (
         <>
-          {/* Category pills — hidden while searching */}
+          {/* Category pills: hidden while searching */}
           {!isSearching && (
             <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1 mb-7 -mx-1 px-1">
               {CATEGORIES.map((c) => (
@@ -214,7 +214,7 @@ function HomeFeed({
             </div>
           )}
 
-          {/* Trending destinations — hidden while searching */}
+          {/* Trending destinations: hidden while searching */}
           {!isSearching && (
             <section className="mb-8">
               <SectionHeader title="Trending Destinations" action="See All" />
@@ -233,7 +233,7 @@ function HomeFeed({
             </section>
           )}
 
-          {/* Groups forming now (real data) — always visible */}
+          {/* Groups forming now (real data), always visible */}
           <section className="mb-9">
             <SectionHeader title={isSearching ? `Results for "${searchQuery.trim()}"` : 'Groups Forming Now'} />
             {filteredTrips.length === 0 ? (
@@ -371,7 +371,7 @@ function HomeSkeleton() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   PAGE (data fetching — renders inside the routed AppShell)
+   PAGE (data fetching, renders inside the routed AppShell)
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function Home() {
   const { user } = useAuth();

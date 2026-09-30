@@ -32,7 +32,7 @@
   --google-red:  #EA4335;
   --error:       hsl(0, 72%, 51%);
 
-  /* Soft UI shadows — light source: top-left */
+  /* Soft UI shadows (light source: top-left) */
   --shadow-neu:
     6px 6px 14px hsl(220, 20%, 85%),
     -4px -4px 10px hsl(0, 0%, 100%);

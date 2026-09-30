@@ -22,5 +22,7 @@ export interface Trip {
   _count?: {
     requests: number;
   };
+  // Feed only (when logged in): the current user's own request for this trip, if any.
+  requests?: { status: 'PENDING' | 'APPROVED' | 'REJECTED' }[];
   createdAt: string;
 }

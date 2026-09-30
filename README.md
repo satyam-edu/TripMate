@@ -9,7 +9,7 @@ A travel companion finding app where hosts post trips and travelers request to j
 ## Features
 
 - **Google OAuth** sign-in (no passwords to manage)
-- **Post a trip** — destination, dates, budget, tags, cover image, max guests
+- **Post a trip**: destination, dates, budget, tags, cover image, max guests
 - **Browse trips** posted by other travelers, filter by tags
 - **Request to join** a trip; hosts can approve or reject from their Hub
 - **Profile** with bio, location, social handle, and trip history
@@ -103,10 +103,10 @@ npx prisma generate
 ### 4. Run both apps
 
 ```bash
-# Terminal 1 — backend
+# Terminal 1: backend
 cd backend && npm run dev
 
-# Terminal 2 — frontend
+# Terminal 2: frontend
 cd tripmate && npm run dev
 ```
 
@@ -120,8 +120,8 @@ Base URL: `/api`
 
 | Method | Endpoint | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/health` | — | Health check |
-| `POST` | `/auth/google` | — | Exchange Google access token for app JWT |
+| `GET` | `/health` | None | Health check |
+| `POST` | `/auth/google` | None | Exchange Google access token for app JWT |
 | `GET` | `/users/me` | ✅ | Current user profile |
 | `PATCH` | `/users/me` | ✅ | Update profile |
 | `GET` | `/trips` | optional | List all trips (richer data if logged in) |
@@ -190,4 +190,4 @@ In Google Cloud Console → Credentials, add your Vercel URL to **Authorized Jav
 
 ## License
 
-ISC — personal project, built by Satyam.
+ISC, personal project, built by Satyam.

@@ -30,4 +30,11 @@ api.interceptors.response.use(
   }
 );
 
+// Pulls the backend's { error: "..." } message out of a failed request.
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  return axios.isAxiosError(err) && typeof err.response?.data?.error === 'string'
+    ? err.response.data.error
+    : fallback;
+}
+
 export default api;

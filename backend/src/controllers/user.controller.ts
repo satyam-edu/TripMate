@@ -37,6 +37,22 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// GET /api/users/me
+// The authenticated user's own full profile (used to refresh the app's cached copy).
+export const getMe = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('[getMe]', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
 // PATCH /api/users/me
 // Updates the authenticated user's editable profile fields (Trust Center).
 export const updateMe = async (req: Request, res: Response): Promise<void> => {

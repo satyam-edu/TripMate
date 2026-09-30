@@ -66,7 +66,7 @@ export default function Login() {
           Sign in to start your adventure.
         </p>
 
-        {/* ── Google auth (REAL — handler + variables preserved) ───────────────── */}
+        {/* ── Google auth (REAL: handler + variables preserved) ───────────────── */}
         <button
           onClick={() => handleGoogleLogin()}
           disabled={isLoading}

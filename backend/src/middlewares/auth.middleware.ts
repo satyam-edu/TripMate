@@ -51,7 +51,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction): vo
 
 // Middleware: optionalVerifyToken
 // Decodes the JWT if present and valid, attaches userId to req.userId.
-// Never blocks — unauthenticated requests simply have req.userId === undefined.
+// Never blocks; unauthenticated requests simply have req.userId === undefined.
 export const optionalVerifyToken = (req: Request, _res: Response, next: NextFunction): void => {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -68,7 +68,7 @@ export const optionalVerifyToken = (req: Request, _res: Response, next: NextFunc
     const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
     req.userId = decoded.userId;
   } catch {
-    // Invalid / expired token — ignore and continue as anonymous
+    // Invalid / expired token: ignore and continue as anonymous
   }
   next();
 };

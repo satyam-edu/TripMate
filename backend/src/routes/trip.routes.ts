@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getTripReviewState, createReview } from '../controllers/review.controller';
+import { getTripReviewState, createReview, updateReview, deleteReview } from '../controllers/review.controller';
 import {
   createTrip,
   getAllTrips,
@@ -30,5 +30,7 @@ router.patch('/:id', verifyToken, updateTrip);
 router.delete('/:id', verifyToken, deleteTrip);
 router.get('/:id/reviews', verifyToken, getTripReviewState);
 router.post('/:id/reviews', verifyToken, createReview);
+router.patch('/:id/reviews/:reviewId', verifyToken, updateReview);
+router.delete('/:id/reviews/:reviewId', verifyToken, deleteReview);
 
 export default router;

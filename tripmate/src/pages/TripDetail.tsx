@@ -371,10 +371,17 @@ interface ReviewPerson {
   name: string;
   avatar: string | null;
 }
+interface GivenReview {
+  id: string;
+  revieweeId: string;
+  rating: number;
+  text: string | null;
+  reviewee: ReviewPerson;
+}
 interface ReviewState {
   eligible: boolean;
   pending: ReviewPerson[];
-  given: { revieweeId: string; rating: number; text: string | null }[];
+  given: GivenReview[];
 }
 
 function ReviewSection({ tripId }: { tripId: string }) {
@@ -383,6 +390,10 @@ function ReviewSection({ tripId }: { tripId: string }) {
   const [text, setText] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editRating, setEditRating] = useState(0);
+  const [editText, setEditText] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = () => {
     api
@@ -409,6 +420,44 @@ function ReviewSection({ tripId }: { tripId: string }) {
       setError(apiErrorMessage(err, 'Could not save your review. Please try again.'));
     } finally {
       setSubmitting(null);
+    }
+  };
+
+  const startEdit = (review: GivenReview) => {
+    setEditingId(review.id);
+    setEditRating(review.rating);
+    setEditText(review.text ?? '');
+    setError(null);
+  };
+
+  const saveEdit = async (reviewId: string) => {
+    if (editRating < 1) {
+      setError('Pick a star rating first.');
+      return;
+    }
+    setSubmitting(reviewId);
+    setError(null);
+    try {
+      await api.patch(`/trips/${tripId}/reviews/${reviewId}`, { rating: editRating, text: editText.trim() });
+      setEditingId(null);
+      load();
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not save your changes. Please try again.'));
+    } finally {
+      setSubmitting(null);
+    }
+  };
+
+  const removeReview = async (reviewId: string) => {
+    setDeletingId(reviewId);
+    setError(null);
+    try {
+      await api.delete(`/trips/${tripId}/reviews/${reviewId}`);
+      load();
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not delete your review. Please try again.'));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -450,11 +499,66 @@ function ReviewSection({ tripId }: { tripId: string }) {
         </div>
       ))}
 
-      {state.given.length > 0 && (
-        <p className="text-emerald-600 text-sm font-semibold mt-1">
-          {state.pending.length === 0 ? 'You reviewed everyone on this trip. Thanks!' : `${state.given.length} review(s) submitted.`}
-        </p>
-      )}
+      {state.given.map((review) => (
+        <div key={review.id} className="flex items-start gap-3 py-3 border-t border-slate-100">
+          <Avatar src={review.reviewee.avatar} name={review.reviewee.name} size={40} />
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-900 font-semibold text-[15px] truncate">{review.reviewee.name}</p>
+            {editingId === review.id ? (
+              <>
+                <StarPicker value={editRating} onChange={setEditRating} />
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Optional note about travelling with them…"
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 resize-none"
+                />
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveEdit(review.id)}
+                    disabled={submitting === review.id}
+                    className="rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-1.5 transition-colors"
+                  >
+                    {submitting === review.id ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(null)}
+                    className="text-slate-500 hover:text-slate-900 text-sm font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <StarPicker value={review.rating} onChange={() => {}} />
+                {review.text && <p className="text-slate-600 text-sm mt-1">{review.text}</p>}
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(review)}
+                    className="text-blue-600 hover:text-blue-700 text-sm font-semibold"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeReview(review.id)}
+                    disabled={deletingId === review.id}
+                    className="text-red-500 hover:text-red-600 disabled:opacity-60 text-sm font-semibold"
+                  >
+                    {deletingId === review.id ? 'Removing…' : 'Delete'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ))}
 
       {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
     </section>

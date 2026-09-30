@@ -9,7 +9,7 @@ import { Avatar, Pill, SectionHeader, Skeleton, EmptyState, ErrorState, cn } fro
 import { Search, Bell, Compass, UserPlus, Check, X, Star } from 'lucide-react';
 import { getSocket } from '../services/socket';
 
-/* ── Categories (client-side filter over trip.tags) ─────────────────────────── */
+/* ── Categories (sent to the server as the `category` filter) ───────────────── */
 const CATEGORIES = ['Mountains', 'Beaches', 'Culture', 'Adventure', 'Wildlife', 'Road Trip'] as const;
 
 /* ── Mock content (no API yet, same as prior Home) ─────────────────────────── */
@@ -65,6 +65,15 @@ type ViewState = 'loading' | 'error' | 'empty' | 'ready';
 /* ═══════════════════════════════════════════════════════════════════════════════
    HOME FEED  (Discover screen)
    ═══════════════════════════════════════════════════════════════════════════════ */
+export interface FeedFilters {
+  category: string | null;
+  q: string;
+  minBudget: string;
+  maxBudget: string;
+  startDate: string;
+  endDate: string;
+}
+
 function HomeFeed({
   trips,
   view,
@@ -72,6 +81,11 @@ function HomeFeed({
   onPost,
   currentUserId,
   user,
+  filters,
+  setFilters,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   trips: Trip[];
   view: ViewState;
@@ -79,13 +93,21 @@ function HomeFeed({
   onPost: () => void;
   currentUserId: string;
   user: AuthUser | null;
+  filters: FeedFilters;
+  setFilters: React.Dispatch<React.SetStateAction<FeedFilters>>;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
 }) {
-  const [category, setCategory] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const { category, q: searchQuery, minBudget, maxBudget, startDate, endDate } = filters;
+  const setCategory = (c: string | null) => setFilters((f) => ({ ...f, category: c }));
+  const setSearchQuery = (q: string) => setFilters((f) => ({ ...f, q }));
+  const [showFilters, setShowFilters] = useState(false);
   const firstName = user?.name?.split(' ')[0] ?? 'there';
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const isSearching = searchQuery.trim().length > 0;
+  const hasMoreFilters = Boolean(minBudget || maxBudget || startDate || endDate);
 
   const clearSearch = () => {
     setSearchQuery('');
@@ -97,18 +119,7 @@ function HomeFeed({
     }
   };
 
-  // Combined client-side filter: category pill + case-insensitive smart search.
-  const q = searchQuery.trim().toLowerCase();
-  const filteredTrips = trips.filter((t) => {
-    const matchesCategory = !category || t.tags.includes(category);
-    const matchesSearch =
-      !q ||
-      t.destination.toLowerCase().includes(q) ||
-      t.country.toLowerCase().includes(q) ||
-      (t.description?.toLowerCase().includes(q) ?? false) ||
-      t.tags.some((tag) => tag.toLowerCase().includes(q));
-    return matchesCategory && matchesSearch;
-  });
+  const filteredTrips = trips;
 
   return (
     <div className="pb-28 lg:pb-10">
@@ -211,14 +222,88 @@ function HomeFeed({
 
       {view === 'ready' && (
         <>
-          {/* Category pills: hidden while searching */}
+          {/* Category pills + budget/date filters: hidden while searching */}
           {!isSearching && (
-            <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1 mb-7 -mx-1 px-1">
-              {CATEGORIES.map((c) => (
-                <Pill key={c} active={category === c} onClick={() => setCategory((prev) => (prev === c ? null : c))}>
-                  {c}
-                </Pill>
-              ))}
+            <div className="mb-7">
+              <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
+                {CATEGORIES.map((c) => (
+                  <Pill key={c} active={category === c} onClick={() => setCategory(category === c ? null : c)}>
+                    {c}
+                  </Pill>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((s) => !s)}
+                  className={cn(
+                    'shrink-0 whitespace-nowrap rounded-full px-4 py-2 border transition-colors',
+                    showFilters || hasMoreFilters
+                      ? 'bg-[#2563EB] text-white border-[#2563EB]'
+                      : 'bg-white text-[#64748B] border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB]',
+                  )}
+                  style={{ fontSize: 14, fontWeight: 600 }}
+                >
+                  Budget & dates{hasMoreFilters ? ' ·' : ''}
+                </button>
+              </div>
+
+              {showFilters && (
+                <div className="flex flex-wrap items-end gap-4 mt-3 bg-white border border-[#E2E8F0] rounded-2xl p-4">
+                  <div>
+                    <label className="block text-[#94A3B8] mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
+                      Budget (₹)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        value={minBudget}
+                        onChange={(e) => setFilters((f) => ({ ...f, minBudget: e.target.value }))}
+                        placeholder="Min"
+                        className="w-24 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0F172A] outline-none focus:border-[#2563EB]"
+                      />
+                      <span className="text-[#94A3B8]">–</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={maxBudget}
+                        onChange={(e) => setFilters((f) => ({ ...f, maxBudget: e.target.value }))}
+                        placeholder="Max"
+                        className="w-24 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0F172A] outline-none focus:border-[#2563EB]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[#94A3B8] mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
+                      Travel dates
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setFilters((f) => ({ ...f, startDate: e.target.value }))}
+                        className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0F172A] outline-none focus:border-[#2563EB]"
+                      />
+                      <span className="text-[#94A3B8]">–</span>
+                      <input
+                        type="date"
+                        value={endDate}
+                        min={startDate || undefined}
+                        onChange={(e) => setFilters((f) => ({ ...f, endDate: e.target.value }))}
+                        className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0F172A] outline-none focus:border-[#2563EB]"
+                      />
+                    </div>
+                  </div>
+                  {hasMoreFilters && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((f) => ({ ...f, minBudget: '', maxBudget: '', startDate: '', endDate: '' }))}
+                      className="text-[#2563EB] hover:text-[#1D4ED8] text-sm font-semibold"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -258,11 +343,26 @@ function HomeFeed({
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {filteredTrips.map((t) => (
-                  <TripCard key={t.id} trip={t} currentUserId={currentUserId} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {filteredTrips.map((t) => (
+                    <TripCard key={t.id} trip={t} currentUserId={currentUserId} />
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className="flex justify-center mt-7">
+                    <button
+                      type="button"
+                      onClick={onLoadMore}
+                      disabled={loadingMore}
+                      className="rounded-full border border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB] disabled:opacity-60 text-[#64748B] px-6 py-2.5 transition-colors"
+                      style={{ fontSize: 14, fontWeight: 600 }}
+                    >
+                      {loadingMore ? 'Loading…' : 'Load more trips'}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </section>
         </>
@@ -428,35 +528,75 @@ function HomeSkeleton() {
 /* ═══════════════════════════════════════════════════════════════════════════════
    PAGE (data fetching, renders inside the routed AppShell)
    ═══════════════════════════════════════════════════════════════════════════════ */
+const EMPTY_FILTERS: FeedFilters = { category: null, q: '', minBudget: '', maxBudget: '', startDate: '', endDate: '' };
+
+function buildQuery(filters: FeedFilters, cursor: string | null): string {
+  const params = new URLSearchParams();
+  if (filters.q.trim()) params.set('q', filters.q.trim());
+  if (filters.category) params.set('category', filters.category);
+  if (filters.minBudget) params.set('minBudget', filters.minBudget);
+  if (filters.maxBudget) params.set('maxBudget', filters.maxBudget);
+  if (filters.startDate) params.set('startDate', filters.startDate);
+  if (filters.endDate) params.set('endDate', filters.endDate);
+  if (cursor) params.set('cursor', cursor);
+  return params.toString();
+}
+
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [view, setView] = useState<ViewState>('loading');
+  const [filters, setFilters] = useState<FeedFilters>(EMPTY_FILTERS);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchTrips = async () => {
+  const fetchTrips = async (activeFilters: FeedFilters) => {
     setView('loading');
     try {
-      const { data } = await api.get<Trip[]>('/trips');
-      setTrips(data);
-      setView(data.length === 0 ? 'empty' : 'ready');
+      const { data } = await api.get<{ trips: Trip[]; nextCursor: string | null }>(`/trips?${buildQuery(activeFilters, null)}`);
+      setTrips(data.trips);
+      setNextCursor(data.nextCursor);
+      setView(data.trips.length === 0 ? 'empty' : 'ready');
     } catch {
       setView('error');
     }
   };
 
+  // Re-fetch whenever a filter changes, debounced so typing doesn't fire a request per keystroke.
   useEffect(() => {
-    fetchTrips();
-  }, []);
+    const t = window.setTimeout(() => fetchTrips(filters), 350);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const { data } = await api.get<{ trips: Trip[]; nextCursor: string | null }>(`/trips?${buildQuery(filters, nextCursor)}`);
+      setTrips((prev) => [...prev, ...data.trips]);
+      setNextCursor(data.nextCursor);
+    } catch (error) {
+      console.error('[Home] load more failed', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <HomeFeed
       trips={trips}
       view={view}
-      onRetry={fetchTrips}
+      onRetry={() => fetchTrips(filters)}
       onPost={() => navigate('/post')}
       currentUserId={user?.id ?? ''}
       user={user}
+      filters={filters}
+      setFilters={setFilters}
+      hasMore={nextCursor !== null}
+      loadingMore={loadingMore}
+      onLoadMore={loadMore}
     />
   );
 }

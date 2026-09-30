@@ -25,5 +25,7 @@ export interface Trip {
   };
   // Feed only (when logged in): the current user's own request for this trip, if any.
   requests?: { status: 'PENDING' | 'APPROVED' | 'REJECTED' }[];
+  // Hosted trips only: how many join requests are waiting on a decision.
+  pendingCount?: number;
   createdAt: string;
 }

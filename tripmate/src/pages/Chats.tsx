@@ -1,12 +1,105 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Send, ChevronLeft, MessageCircle, Reply, X, BellRing, BellOff } from 'lucide-react';
+import { Send, ChevronLeft, MessageCircle, Reply, X, BellRing, BellOff, Smile } from 'lucide-react';
 import api, { apiErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useChatAlerts, type ChatPush } from '../context/ChatAlertsContext';
 import { getSocket } from '../services/socket';
 import { alertsEnabled, setAlertsEnabled } from '../services/alerts';
 import { Avatar, Skeleton, ErrorState, cn, formatDateRange } from '../components/ui-bits';
+
+/* ── Chat wallpaper: a low-intensity, WhatsApp-style tiled doodle, travel themed ──
+   Plain line-art (plane, compass, pin, mountains, camera, palm tree, suitcase, sun,
+   wave) scattered densely across a 260×260 tile at a very faint opacity, so it reads
+   as texture from a distance rather than individual icons. */
+const CHAT_DOODLE_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260" viewBox="0 0 260 260">
+  <g fill="none" stroke="#94A3B8" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity="0.08">
+    <!-- paper plane -->
+    <g transform="translate(20,25) rotate(-15) scale(0.8)">
+      <path d="M0 14 L30 0 L18 28 L13 18 Z" />
+      <path d="M0 14 L13 18" />
+    </g>
+    <!-- compass -->
+    <g transform="translate(175,20) scale(0.8)">
+      <circle cx="0" cy="0" r="14" />
+      <path d="M-5 5 L2 -6 L5 -5 L-2 6 Z" />
+    </g>
+    <!-- map pin -->
+    <g transform="translate(95,55) scale(0.75)">
+      <path d="M0 0 C-9 0 -9 13 0 22 C9 13 9 0 0 0 Z" />
+      <circle cx="0" cy="7" r="3" />
+    </g>
+    <!-- sun -->
+    <g transform="translate(230,70) scale(0.7)">
+      <circle cx="0" cy="0" r="7" />
+      <path d="M0 -13 L0 -10 M0 10 L0 13 M-13 0 L-10 0 M10 0 L13 0 M-9 -9 L-7 -7 M7 7 L9 9 M-9 9 L-7 7 M7 -7 L9 -9" />
+    </g>
+    <!-- mountains -->
+    <g transform="translate(25,110) scale(0.75)">
+      <path d="M0 26 L14 4 L22 16 L32 0 L48 26 Z" />
+    </g>
+    <!-- camera -->
+    <g transform="translate(150,110) scale(0.7)">
+      <rect x="-14" y="-8" width="28" height="20" rx="3" />
+      <circle cx="0" cy="2" r="6" />
+      <path d="M-6 -8 L-3 -13 L7 -13 L10 -8" />
+    </g>
+    <!-- wave -->
+    <g transform="translate(215,140) scale(0.8)">
+      <path d="M-14 0 C-10 -6 -4 -6 0 0 C4 6 10 6 14 0" />
+    </g>
+    <!-- palm tree -->
+    <g transform="translate(75,160) scale(0.7)">
+      <path d="M0 30 L0 6" />
+      <path d="M0 6 C-10 -2 -18 0 -22 -6" />
+      <path d="M0 6 C8 -4 16 -2 20 -8" />
+      <path d="M0 6 C-4 -6 -2 -14 -8 -18" />
+      <path d="M0 6 C4 -6 2 -14 8 -18" />
+    </g>
+    <!-- second paper plane -->
+    <g transform="translate(150,190) rotate(20) scale(0.7)">
+      <path d="M0 10 L22 0 L13 20 L9 13 Z" />
+      <path d="M0 10 L9 13" />
+    </g>
+    <!-- suitcase -->
+    <g transform="translate(35,215) scale(0.7)">
+      <rect x="-14" y="-8" width="28" height="20" rx="3" />
+      <path d="M-6 -8 L-6 -13 L6 -13 L6 -8" />
+    </g>
+    <!-- small map pin -->
+    <g transform="translate(220,225) scale(0.6)">
+      <path d="M0 0 C-9 0 -9 13 0 22 C9 13 9 0 0 0 Z" />
+      <circle cx="0" cy="7" r="3" />
+    </g>
+    <!-- small compass -->
+    <g transform="translate(105,235) scale(0.6)">
+      <circle cx="0" cy="0" r="14" />
+      <path d="M-5 5 L2 -6 L5 -5 L-2 6 Z" />
+    </g>
+  </g>
+</svg>`;
+const CHAT_DOODLE_BG = `url("data:image/svg+xml,${encodeURIComponent(CHAT_DOODLE_SVG)}")`;
+
+/* ── Emoji picker: a small curated set, no external dependency ──────────────── */
+const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
+  {
+    label: 'Smileys',
+    emojis: ['😀', '😁', '😂', '🤣', '😊', '🙂', '😉', '😍', '😘', '😎', '🤔', '😅', '🙃', '😇', '🥳', '🤗', '😢', '😭', '😡', '🥺'],
+  },
+  {
+    label: 'Gestures',
+    emojis: ['👍', '👎', '👏', '🙌', '🙏', '💪', '🤝', '✌️', '🤞', '👌', '🤙', '👋'],
+  },
+  {
+    label: 'Travel',
+    emojis: ['✈️', '🚗', '🚂', '🚢', '🏖️', '🏔️', '⛺', '🗺️', '🧳', '📸', '🌍', '🌅', '🎒', '🚁', '🛶'],
+  },
+  {
+    label: 'Other',
+    emojis: ['❤️', '🔥', '✨', '🎉', '⭐', '💯', '☕', '🍕', '🎶', '💤'],
+  },
+];
 
 /* ── Types (match backend payloads) ─────────────────────────────────────────── */
 type ChatTab = 'groups' | 'inquiries';
@@ -59,12 +152,28 @@ function subtitle(c: Conversation): string {
     : `${c.status === 'APPROVED' ? 'Approved' : 'Pending'} request · ${c.destination}`;
 }
 
-// Today → "2:14 PM", otherwise → "12 Jul".
+// Today → "2:14 PM", otherwise → "12 Jul". Used for conversation-list rows.
 function fmtTime(iso: string): string {
   const d = new Date(iso);
   return d.toDateString() === new Date().toDateString()
     ? d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
     : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+// Always a clock time, e.g. "2:14 PM" — shown under every message bubble.
+function fmtClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+}
+
+// Date divider text between groups of messages from different days: "Today", "Yesterday", or "30 September 2026".
+function fmtDateDivider(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // Put the conversation's new last message in place (optionally +1 unread) and move it to the top.
@@ -96,7 +205,34 @@ export default function Chats() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const emojiRef = useRef<HTMLDivElement>(null);
+
+  // Inserts at the cursor position rather than just appending, so picking an emoji
+  // mid-sentence doesn't jump it to the end.
+  const insertEmoji = (emoji: string) => {
+    const el = inputRef.current;
+    const start = el?.selectionStart ?? draft.length;
+    const end = el?.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + emoji + draft.slice(end);
+    setDraft(next);
+    const pos = start + emoji.length;
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(pos, pos);
+    });
+  };
+
+  // Close the emoji panel on an outside click.
+  useEffect(() => {
+    if (!showEmoji) return;
+    const onClick = (e: MouseEvent) => {
+      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmoji(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [showEmoji]);
 
   const list: Conversation[] = tab === 'groups' ? groups : inquiries;
   const active = list.find((c) => c.id === activeId) ?? null;
@@ -249,17 +385,20 @@ export default function Chats() {
   const switchTab = (t: ChatTab) => {
     setSendError(null);
     setReplyingTo(null);
+    setShowEmoji(false);
     setSearchParams({ tab: t }); // also drops chatId → back to list
   };
   const openChat = (id: string) => {
     setSendError(null);
     setReplyingTo(null);
+    setShowEmoji(false);
     setSearchParams({ tab, chatId: id }); // push
   };
 
   // Closing mirrors the hardware back button so we don't leave a re-openable entry.
   const closeChat = () => {
     setReplyingTo(null);
+    setShowEmoji(false);
     const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
     if (idx > 0) navigate(-1);
     else setSearchParams({ tab }, { replace: true });
@@ -319,7 +458,7 @@ export default function Chats() {
     sender.id === user?.id ? 'You' : sender.name.split(' ')[0];
 
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-140px)]">
+    <div className="flex flex-col lg:h-[calc(100vh-60px)]">
       <div className="flex items-center justify-between gap-3 mb-1 lg:mb-4 shrink-0">
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Chats</h1>
         <AlertsToggle />
@@ -444,24 +583,39 @@ export default function Chats() {
                 </div>
 
                 {/* Message list: the ONLY scrollable region */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3 bg-slate-50">
+                <div
+                  className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3 bg-slate-50"
+                  style={{ backgroundImage: CHAT_DOODLE_BG, backgroundRepeat: 'repeat', backgroundSize: '260px 260px' }}
+                >
                   {messagesLoading && <p className="text-center text-slate-400 text-sm">Loading messages…</p>}
                   {!messagesLoading && messages.length === 0 && (
                     <p className="text-center text-slate-400 text-sm py-10">No messages yet. Start the conversation!</p>
                   )}
-                  {messages.map((m) => (
-                    <MessageRow
-                      key={m.id}
-                      message={m}
-                      fromMe={m.sender.id === user?.id}
-                      showName={active.kind === 'groups'}
-                      highlighted={highlightId === m.id}
-                      nameFor={nameFor}
-                      // The join pitch and not-yet-saved messages can't be replied to.
-                      onReply={m.id.startsWith('pitch-') || m.pending ? undefined : () => startReply(m)}
-                      onJumpTo={jumpTo}
-                    />
-                  ))}
+                  {messages.map((m, i) => {
+                    const prev = messages[i - 1];
+                    const isNewDay = !prev || new Date(prev.createdAt).toDateString() !== new Date(m.createdAt).toDateString();
+                    return (
+                      <div key={m.id}>
+                        {isNewDay && (
+                          <div className="flex justify-center my-3">
+                            <span className="bg-white/90 border border-slate-200 text-slate-500 text-xs font-semibold px-3 py-1 rounded-full">
+                              {fmtDateDivider(m.createdAt)}
+                            </span>
+                          </div>
+                        )}
+                        <MessageRow
+                          message={m}
+                          fromMe={m.sender.id === user?.id}
+                          showName={active.kind === 'groups'}
+                          highlighted={highlightId === m.id}
+                          nameFor={nameFor}
+                          // The join pitch and not-yet-saved messages can't be replied to.
+                          onReply={m.id.startsWith('pitch-') || m.pending ? undefined : () => startReply(m)}
+                          onJumpTo={jumpTo}
+                        />
+                      </div>
+                    );
+                  })}
                   <div ref={bottomRef} />
                 </div>
 
@@ -487,7 +641,42 @@ export default function Chats() {
                       </button>
                     </div>
                   )}
-                  <div className="p-3 flex items-center gap-2">
+                  <div className="p-3 flex items-center gap-2 relative">
+                    {showEmoji && (
+                      <div
+                        ref={emojiRef}
+                        className="absolute bottom-full left-3 mb-2 w-72 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-[0_12px_32px_rgba(15,23,42,0.16)] p-3 z-10"
+                      >
+                        {EMOJI_GROUPS.map((group) => (
+                          <div key={group.label} className="mb-2 last:mb-0">
+                            <p className="text-slate-400 text-[11px] font-semibold uppercase tracking-wide mb-1">{group.label}</p>
+                            <div className="grid grid-cols-8 gap-1">
+                              {group.emojis.map((e) => (
+                                <button
+                                  key={e}
+                                  type="button"
+                                  onClick={() => insertEmoji(e)}
+                                  className="text-xl leading-none rounded-lg hover:bg-slate-100 p-1.5 transition-colors"
+                                >
+                                  {e}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowEmoji((s) => !s)}
+                      aria-label="Add emoji"
+                      className={cn(
+                        'w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-colors',
+                        showEmoji ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-100',
+                      )}
+                    >
+                      <Smile size={21} />
+                    </button>
                     <input
                       ref={inputRef}
                       value={draft}
@@ -673,7 +862,7 @@ function MessageRow({
             {m.text}
           </div>
           <p className={cn('text-slate-400 mt-1 text-[11px]', fromMe ? 'text-right mr-1' : 'ml-1')}>
-            {m.pending ? 'Sending…' : fmtTime(m.createdAt)}
+            {m.pending ? 'Sending…' : fmtClock(m.createdAt)}
           </p>
         </div>
         {!fromMe && replyButton}

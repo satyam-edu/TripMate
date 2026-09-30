@@ -9,6 +9,19 @@ import Chats from './pages/Chats';
 import Profile from './pages/Profile';
 import TripDetail from './pages/TripDetail';
 import PublicProfile from './pages/PublicProfile';
+import { useServerWaking } from './services/serverWakeStatus';
+
+// Shown whenever a request has been pending a while (a cold-started free-tier backend
+// can take 30-50s to wake up for the first request of the day).
+function ServerWakingBanner() {
+  const waking = useServerWaking();
+  if (!waking) return null;
+  return (
+    <div className="fixed top-0 inset-x-0 z-[100] bg-amber-500 text-white text-sm font-semibold text-center py-2 px-4">
+      Waking up the server — this can take up to a minute on the first request. Hang tight…
+    </div>
+  );
+}
 
 // Guards the authenticated app: redirect to /login when signed out, render the
 // shell (sidebar + bottom nav + <Outlet/>) when signed in.
@@ -32,23 +45,26 @@ function LoginRoute() {
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/login" element={<LoginRoute />} />
+    <>
+      <ServerWakingBanner />
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<LoginRoute />} />
 
-      {/* Protected (share the app shell) */}
-      <Route element={<ProtectedShell />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/post" element={<PostTab />} />
-        <Route path="/requests" element={<Requests />} />
-        <Route path="/chats" element={<Chats />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/trips/:id" element={<TripDetail />} />
-        <Route path="/users/:id" element={<PublicProfile />} />
-      </Route>
+        {/* Protected (share the app shell) */}
+        <Route element={<ProtectedShell />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/post" element={<PostTab />} />
+          <Route path="/requests" element={<Requests />} />
+          <Route path="/chats" element={<Chats />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/trips/:id" element={<TripDetail />} />
+          <Route path="/users/:id" element={<PublicProfile />} />
+        </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }

@@ -6,6 +6,7 @@ import { closeSocket } from '../services/socket';
 export interface AuthUser {
   id: string;
   googleId: string;
+  email: string | null;
   name: string;
   avatar: string | null;
   coverImage: string | null;
@@ -14,6 +15,8 @@ export interface AuthUser {
   socialHandle: string | null;
   phone: string | null;
   gender: string | null;
+  phoneVerified: boolean;
+  verified: boolean;
   tags: string[];
   createdAt: string;
 }

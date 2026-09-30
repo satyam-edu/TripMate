@@ -36,7 +36,7 @@ export const googleLogin = async (req: Request, res: Response): Promise<void> =>
     }
 
     const payload = await response.json() as any;
-    const { sub: googleId, name, picture: avatar } = payload;
+    const { sub: googleId, name, picture: avatar, email } = payload;
     if (!googleId) {
       res.status(401).json({ error: 'Invalid Google token.' });
       return;
@@ -51,11 +51,13 @@ export const googleLogin = async (req: Request, res: Response): Promise<void> =>
       where: { googleId },
       update: {
         name: name ?? 'Traveller',
+        ...(typeof email === 'string' ? { email } : {}),
         ...(keepUploaded ? {} : { avatar: avatar ?? null }),
       },
       create: {
         googleId,
         name: name ?? 'Traveller',
+        email: typeof email === 'string' ? email : null,
         avatar: avatar ?? null,
       },
     });

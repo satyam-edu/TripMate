@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getMe, getUser, updateMe } from '../controllers/user.controller';
+import { getMe, getUser, updateMe, verifyPhone } from '../controllers/user.controller';
 import { verifyToken, optionalVerifyToken } from '../middlewares/auth.middleware';
 import { uploadPhoto, removePhoto } from '../controllers/image.controller';
 import { blockUser, unblockUser, reportUser } from '../controllers/safety.controller';
@@ -16,6 +16,7 @@ const router = Router();
 // POST   /api/users/:id/report → report a user (reason + optional details)
 router.get('/me', verifyToken, getMe);
 router.patch('/me', verifyToken, updateMe);
+router.post('/me/phone/verify', verifyToken, verifyPhone);
 router.put(
   '/me/photo/:kind',
   verifyToken,

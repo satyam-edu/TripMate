@@ -1,6 +1,18 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
-import { isValidTags } from '../utils';
+import { isValidTags, isPrismaError } from '../utils';
+import { firebaseAuth } from '../config/firebaseAdmin';
+
+// Recomputes the blue-tick "verified" flag from the trust signals and saves it.
+async function recomputeVerified(userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  // Google sign-in already proves email ownership, so phone is the only extra check.
+  const verified = user.phoneVerified;
+  if (verified !== user.verified) {
+    await prisma.user.update({ where: { id: userId }, data: { verified } });
+  }
+  return verified;
+}
 
 // GET /api/users/:id
 // Public profile: only safe fields (no phone / googleId / gender) + hosted trips.
@@ -124,5 +136,40 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error('[updateMe]', error);
     res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
+// POST /api/users/me/phone/verify
+// Body: { idToken } — a Firebase phone-auth ID token from the client SDK.
+// Verifies it server-side, then marks the user's phone as verified.
+export const verifyPhone = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId as string;
+    const { idToken } = req.body as { idToken?: string };
+    if (!idToken) {
+      res.status(400).json({ error: 'idToken is required.' });
+      return;
+    }
+
+    const decoded = await firebaseAuth.verifyIdToken(idToken);
+    const phone = decoded.phone_number;
+    if (!phone) {
+      res.status(400).json({ error: 'Token has no verified phone number.' });
+      return;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { phone, phoneVerified: true },
+    });
+    const verified = await recomputeVerified(userId);
+    res.status(200).json({ ...user, verified });
+  } catch (error) {
+    if (isPrismaError(error, 'P2002')) {
+      res.status(409).json({ error: 'This phone number is already linked to another account.' });
+      return;
+    }
+    console.error('[verifyPhone]', error);
+    res.status(400).json({ error: 'Invalid or expired verification token.' });
   }
 };

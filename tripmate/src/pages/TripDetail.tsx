@@ -35,6 +35,7 @@ interface TripDetailData {
   tags: string[];
   coverImage: string | null;
   description: string | null;
+  womenOnly: boolean;
   host: Person & { bio: string | null; location: string | null; socialHandle: string | null };
   members: Person[]; // approved travellers (host not included)
   myRequest: { id: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' } | null;
@@ -97,6 +98,7 @@ export default function TripDetail() {
   }
 
   const isHost = user?.id === trip.hostId;
+  const canJoinWomenOnly = !trip.womenOnly || user?.gender === 'Woman';
   const spotsFilled = trip.members.length + 1; // host takes a spot
   const isFull = spotsFilled >= trip.maxGuests;
   const hasStarted = new Date(trip.startDate) <= new Date();
@@ -169,6 +171,11 @@ export default function TripDetail() {
             <p className="text-white/80 flex items-center gap-1 text-sm mt-1">
               <MapPin size={14} /> {trip.country}
             </p>
+            {trip.womenOnly && (
+              <span className="inline-block mt-2 rounded-full bg-pink-600/90 text-white px-3 py-1 text-xs font-semibold">
+                Women only
+              </span>
+            )}
           </div>
           {/* Categories: below the title on phones, bottom-right corner of the cover from sm+ */}
           {trip.tags.length > 0 && (
@@ -262,6 +269,8 @@ export default function TripDetail() {
               <StatusPill tone="grey">This trip has already started</StatusPill>
             ) : isFull ? (
               <StatusPill tone="grey">This trip is full</StatusPill>
+            ) : !canJoinWomenOnly ? (
+              <StatusPill tone="grey">This trip is only open to women</StatusPill>
             ) : (
               <>
                 <p className="text-slate-900 font-bold">Want to join?</p>

@@ -13,11 +13,12 @@ interface TripBody {
   tags?: string[];
   coverImage?: string;
   description?: string;
+  womenOnly?: boolean;
 }
 
 // Validates a create/edit body. Returns the clean data, or an error message.
 function parseTripBody(body: TripBody) {
-  const { destination, country, startDate, endDate, budget, maxGuests, tags, coverImage, description } = body;
+  const { destination, country, startDate, endDate, budget, maxGuests, tags, coverImage, description, womenOnly } = body;
 
   if (!destination || !country || !startDate || !endDate || budget == null || maxGuests == null) {
     return { error: 'destination, country, startDate, endDate, budget, and maxGuests are required.' };
@@ -66,6 +67,7 @@ function parseTripBody(body: TripBody) {
       tags:        tags ?? [],
       coverImage:  finalCoverImage,
       description: description && description.trim() !== '' ? description.trim() : null,
+      womenOnly:   womenOnly === true,
     },
   };
 }
@@ -84,6 +86,14 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
     if (!parsed.data) {
       res.status(400).json({ error: parsed.error });
       return;
+    }
+    // Only a host who identifies as a woman can mark a trip women-only.
+    if (parsed.data.womenOnly) {
+      const host = await prisma.user.findUnique({ where: { id: hostId }, select: { gender: true } });
+      if (host?.gender !== 'Woman') {
+        res.status(400).json({ error: 'Only travellers with gender set to Woman can post women-only trips.' });
+        return;
+      }
     }
 
     const trip = await prisma.trip.create({ data: { hostId, ...parsed.data } });
@@ -120,6 +130,13 @@ export const updateTrip = async (req: Request, res: Response): Promise<void> => 
     if (!parsed.data) {
       res.status(400).json({ error: parsed.error });
       return;
+    }
+    if (parsed.data.womenOnly) {
+      const host = await prisma.user.findUnique({ where: { id: trip.hostId }, select: { gender: true } });
+      if (host?.gender !== 'Woman') {
+        res.status(400).json({ error: 'Only travellers with gender set to Woman can post women-only trips.' });
+        return;
+      }
     }
     // Host takes one spot; can't shrink below the people already approved.
     if (parsed.data.maxGuests < trip._count.requests + 1) {

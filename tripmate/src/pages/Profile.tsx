@@ -404,6 +404,7 @@ function EditProfileModal({
   const [location, setLocation] = useState(user?.location ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
   const [social, setSocial] = useState(user?.socialHandle ?? '');
+  const [gender, setGender] = useState(user?.gender ?? '');
   const [vibes, setVibes] = useState<string[]>(user?.tags ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -429,6 +430,7 @@ function EditProfileModal({
       location: location.trim(),
       socialHandle: social.trim(),
       tags: vibes,
+      gender,
     };
     try {
       const { data } = await api.patch('/users/me', payload);
@@ -437,6 +439,7 @@ function EditProfileModal({
         location: data.location ?? null,
         socialHandle: data.socialHandle ?? null,
         tags: data.tags ?? [],
+        gender: data.gender ?? null,
       });
       onClose();
     } catch (err) {
@@ -582,6 +585,20 @@ function EditProfileModal({
           placeholder="instagram.com/yourhandle"
           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 transition-colors"
         />
+
+        {/* Gender (used only to unlock hosting/joining women-only trips) */}
+        <label className="block text-sm font-semibold text-slate-700 mt-4 mb-1.5">
+          Gender <span className="font-normal text-slate-400">(only used for women-only trips)</span>
+        </label>
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-600 transition-colors"
+        >
+          <option value="">Prefer not to say</option>
+          <option value="Woman">Woman</option>
+          <option value="Man">Man</option>
+        </select>
 
         {/* Vibes */}
         <label className="block text-sm font-semibold text-slate-700 mt-4 mb-2">Travel vibes</label>
@@ -739,8 +756,10 @@ function EditTripModal({
   const [budget, setBudget] = useState(String(trip.budget));
   const [maxGuests, setMaxGuests] = useState(String(trip.maxGuests));
   const [description, setDescription] = useState(trip.description ?? '');
+  const [womenOnly, setWomenOnly] = useState(trip.womenOnly);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   // Lock background scroll while open.
   useEffect(() => {
@@ -765,6 +784,7 @@ function EditTripModal({
         tags: trip.tags,
         coverImage: trip.coverImage ?? '',
         description,
+        womenOnly,
       });
       onSaved(data);
     } catch (err) {
@@ -826,6 +846,13 @@ function EditTripModal({
           maxLength={2000}
           className={`${input} resize-none`}
         />
+
+        {user?.gender === 'Woman' && (
+          <label className="flex items-center gap-2 mt-4 text-sm font-semibold text-slate-700 cursor-pointer">
+            <input type="checkbox" checked={womenOnly} onChange={(e) => setWomenOnly(e.target.checked)} className="accent-blue-600" />
+            Women-only trip
+          </label>
+        )}
 
         {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
 

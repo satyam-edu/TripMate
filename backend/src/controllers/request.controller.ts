@@ -44,6 +44,13 @@ export const createRequest = async (req: Request, res: Response): Promise<void> 
       res.status(400).json({ error: 'This trip has already started.' });
       return;
     }
+    if (trip.womenOnly) {
+      const requester = await prisma.user.findUnique({ where: { id: userId }, select: { gender: true } });
+      if (requester?.gender !== 'Woman') {
+        res.status(400).json({ error: 'This trip is only open to women.' });
+        return;
+      }
+    }
     if (isFull(trip.maxGuests, trip._count.requests)) {
       res.status(400).json({ error: 'This trip is already full.' });
       return;

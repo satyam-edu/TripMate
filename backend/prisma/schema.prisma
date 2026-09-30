@@ -72,6 +72,7 @@ model Trip {
   tags        String[]
   coverImage  String?
   description String?
+  womenOnly   Boolean   @default(false)
   requests    Request[] // All the requests sent to this trip
   messages    Message[] // Group chat + inquiry messages for this trip
   reviews     Review[] // Reviews left about the trip (host <-> travellers)

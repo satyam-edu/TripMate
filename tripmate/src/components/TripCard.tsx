@@ -4,6 +4,7 @@ import type { Trip } from '../types';
 import api, { apiErrorMessage } from '../services/api';
 import { MapPin, Calendar, Wallet, Users } from 'lucide-react';
 import { Avatar, cn, tagColor, formatDateRange, formatBudget } from './ui-bits';
+import { useAuth } from '../context/AuthContext';
 
 interface TripCardProps {
   trip: Trip;
@@ -11,7 +12,9 @@ interface TripCardProps {
 }
 
 export default function TripCard({ trip, currentUserId }: TripCardProps) {
+  const { user } = useAuth();
   const isHost = currentUserId === trip.hostId;
+  const canJoinWomenOnly = !trip.womenOnly || user?.gender === 'Woman';
   const coverUrl =
     trip.coverImage ||
     `https://loremflickr.com/800/600/${encodeURIComponent(trip.destination.split(',')[0]?.trim() ?? 'travel')}/travel`;
@@ -118,6 +121,14 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
           <Users size={12} className="text-[#2563EB]" />
           {spotsFilled}/{spotsTotal}
         </span>
+        {trip.womenOnly && (
+          <span
+            className="absolute bottom-3 left-3 bg-pink-600/90 text-white rounded-full px-3 py-1 backdrop-blur-sm"
+            style={{ fontSize: 12, fontWeight: 600 }}
+          >
+            Women only
+          </span>
+        )}
       </div>
 
       {/* Body */}
@@ -182,6 +193,13 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
               style={{ fontSize: 14, fontWeight: 600 }}
             >
               Full
+            </span>
+          ) : !canJoinWomenOnly ? (
+            <span
+              className="shrink-0 rounded-full px-4 py-2 bg-[#F1F5F9] text-[#64748B] select-none"
+              style={{ fontSize: 14, fontWeight: 600 }}
+            >
+              Women only
             </span>
           ) : (
             <button

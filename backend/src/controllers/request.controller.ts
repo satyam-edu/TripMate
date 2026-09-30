@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
+import { notify } from './notification.controller';
 
 type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 const VALID_STATUSES: RequestStatus[] = ['APPROVED', 'REJECTED'];
@@ -54,6 +55,13 @@ export const createRequest = async (req: Request, res: Response): Promise<void> 
         trip: { select: { id: true, destination: true, country: true } },
       },
     });
+
+    await notify(
+      trip.hostId,
+      'NEW_REQUEST',
+      `${joinRequest.user.name} requested to join ${joinRequest.trip.destination}`,
+      '/requests',
+    );
 
     res.status(201).json(joinRequest);
   } catch (error: unknown) {
@@ -140,6 +148,7 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
         trip: {
           select: {
             hostId: true,
+            destination: true,
             maxGuests: true,
             _count: { select: { requests: { where: { status: 'APPROVED' } } } },
           },
@@ -169,6 +178,18 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
       where: { id },
       data: { status },
     });
+
+    // Tell the traveller, only when the decision actually changed.
+    if (existing.status !== status) {
+      await notify(
+        existing.userId,
+        status === 'APPROVED' ? 'REQUEST_APPROVED' : 'REQUEST_DECLINED',
+        status === 'APPROVED'
+          ? `Your request for ${existing.trip.destination} was accepted!`
+          : `Your request for ${existing.trip.destination} was declined.`,
+        '/requests?tab=sent',
+      );
+    }
 
     res.status(200).json(updatedRequest);
   } catch (error: unknown) {

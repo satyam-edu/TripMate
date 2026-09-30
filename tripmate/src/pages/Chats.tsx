@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Send, ChevronLeft, MessageCircle, Reply, X } from 'lucide-react';
-import { io } from 'socket.io-client';
+import { Send, ChevronLeft, MessageCircle, Reply, X, BellRing, BellOff } from 'lucide-react';
 import api, { apiErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useChatAlerts, type ChatPush } from '../context/ChatAlertsContext';
+import { getSocket } from '../services/socket';
+import { alertsEnabled, setAlertsEnabled } from '../services/alerts';
 import { Avatar, Skeleton, ErrorState, cn, formatDateRange } from '../components/ui-bits';
 
 /* ── Types (match backend payloads) ─────────────────────────────────────────── */
@@ -16,6 +18,7 @@ interface ChatMessage {
   createdAt: string;
   sender: { id: string; name: string; avatar: string | null };
   replyTo?: { id: string; text: string; sender: { id: string; name: string } } | null;
+  pending?: boolean; // shown instantly on send, before the server confirms it
 }
 
 interface GroupChat {
@@ -28,6 +31,7 @@ interface GroupChat {
   spotsFilled: number;
   maxGuests: number;
   lastMessage: ChatMessage | null;
+  unread: number;
 }
 
 interface InquiryChat {
@@ -38,15 +42,10 @@ interface InquiryChat {
   status: 'PENDING' | 'APPROVED';
   destination: string;
   lastMessage: ChatMessage | null;
+  unread: number;
 }
 
 type Conversation = GroupChat | InquiryChat;
-
-interface ChatPush {
-  kind: ChatTab;
-  conversationId: string;
-  message: ChatMessage;
-}
 
 const TABS: { id: ChatTab; label: string }[] = [
   { id: 'groups', label: 'Groups' },
@@ -68,18 +67,20 @@ function fmtTime(iso: string): string {
     : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-// Put the conversation's new last message in place and move it to the top.
-function bumpConversation<T extends Conversation>(list: T[], id: string, message: ChatMessage): T[] {
+// Put the conversation's new last message in place (optionally +1 unread) and move it to the top.
+function bumpConversation<T extends Conversation>(list: T[], id: string, message: ChatMessage, addUnread = false): T[] {
   const conv = list.find((c) => c.id === id);
   if (!conv) return list;
-  return [{ ...conv, lastMessage: message }, ...list.filter((c) => c.id !== id)];
+  return [{ ...conv, lastMessage: message, unread: conv.unread + (addUnread ? 1 : 0) }, ...list.filter((c) => c.id !== id)];
 }
+
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    CHATS  (dual-tab · fixed app-like scroll layout · mobile full-screen takeover)
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function Chats() {
   const { user, token } = useAuth();
+  const { refreshUnread } = useChatAlerts();
 
   // Tab + active chat are synced to the URL (?tab=groups|inquiries & chatId=…).
   const [searchParams, setSearchParams] = useSearchParams();
@@ -92,7 +93,6 @@ export default function Chats() {
   const [inquiries, setInquiries] = useState<InquiryChat[]>([]);
 
   const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -108,15 +108,60 @@ export default function Chats() {
   const messages = thread.key === chatKey ? thread.messages : [];
   const messagesLoading = chatKey !== null && thread.key !== chatKey;
   const appendMessage = (key: string, message: ChatMessage) =>
-    setThread((t) =>
-      t.key !== key || t.messages.some((m) => m.id === message.id) ? t : { ...t, messages: [...t.messages, message] },
-    );
+    setThread((t) => {
+      if (t.key !== key || t.messages.some((m) => m.id === message.id)) return t;
+      // My own message coming back from the server: swap it in for its "Sending…" copy.
+      const i = message.pending
+        ? -1
+        : t.messages.findIndex((m) => m.pending && m.sender.id === message.sender.id && m.text === message.text);
+      if (i >= 0) return { ...t, messages: t.messages.map((m, j) => (j === i ? message : m)) };
+      return { ...t, messages: [...t.messages, message] };
+    });
+  // Server confirmed (or rejected, when `saved` is null) a message shown with a temporary id.
+  const settleMessage = (key: string, tempId: string, saved: ChatMessage | null) =>
+    setThread((t) => {
+      if (t.key !== key) return t;
+      const alreadyIn = saved !== null && t.messages.some((m) => m.id === saved.id);
+      return {
+        ...t,
+        messages:
+          saved && !alreadyIn
+            ? t.messages.map((m) => (m.id === tempId ? saved : m))
+            : t.messages.filter((m) => m.id !== tempId),
+      };
+    });
 
   // The socket listener is set up once, so it reads the latest lists through a ref.
   const listsRef = useRef({ groups, inquiries });
+  const openKeyRef = useRef<string | null>(null); // the chat on screen, "groups:<id>"
   useEffect(() => {
     listsRef.current = { groups, inquiries };
+    openKeyRef.current = chatKey;
   });
+
+  // Marks a chat read on the server and clears its badge. Debounced per chat so a
+  // busy chat doesn't send one request per incoming message.
+  const readTimers = useRef(new Map<string, number>());
+  const markRead = useCallback(
+    (key: string) => {
+      window.clearTimeout(readTimers.current.get(key));
+      readTimers.current.set(
+        key,
+        window.setTimeout(() => {
+          readTimers.current.delete(key);
+          const [kind, id] = key.split(':') as [ChatTab, string];
+          const clear = <T extends Conversation>(prev: T[]) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c));
+          if (kind === 'groups') setGroups(clear);
+          else setInquiries(clear);
+          api
+            .post(`/chats/${kind}/${id}/read`)
+            .then(refreshUnread)
+            .catch((error) => console.error('[Chats] mark read failed', error));
+        }, 400),
+      );
+    },
+    [refreshUnread],
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchChats = async () => {
@@ -138,23 +183,37 @@ export default function Chats() {
   // Live updates: the server pushes every new message in any of my chats.
   useEffect(() => {
     if (!token) return;
-    const socket = io(import.meta.env.VITE_API_URL, { auth: { token } });
-
-    socket.on('chat:message', ({ kind, conversationId, message }: ChatPush) => {
-      appendMessage(`${kind}:${conversationId}`, message);
+    const socket = getSocket(token);
+    const onMessage = ({ kind, conversationId, message }: ChatPush) => {
+      const key = `${kind}:${conversationId}`;
+      appendMessage(key, message);
       const known = listsRef.current[kind].some((c) => c.id === conversationId);
       if (!known) {
         void fetchChats(); // a chat we haven't listed yet (e.g. a new inquiry)
         return;
       }
-      if (kind === 'groups') setGroups((prev) => bumpConversation(prev, conversationId, message));
-      else setInquiries((prev) => bumpConversation(prev, conversationId, message));
-    });
-
-    return () => {
-      socket.disconnect();
+      const onScreen = openKeyRef.current === key && !document.hidden;
+      const fromOther = message.sender.id !== user?.id;
+      if (kind === 'groups') setGroups((prev) => bumpConversation(prev, conversationId, message, fromOther && !onScreen));
+      else setInquiries((prev) => bumpConversation(prev, conversationId, message, fromOther && !onScreen));
+      if (onScreen && fromOther) markRead(key);
     };
-  }, [token]);
+    socket.on('chat:message', onMessage);
+    return () => {
+      socket.off('chat:message', onMessage);
+    };
+  }, [token, user?.id, markRead]);
+
+  // Opening a chat (or coming back to the tab while it's open) marks it read.
+  useEffect(() => {
+    if (!chatKey) return;
+    const markIfVisible = () => {
+      if (!document.hidden) markRead(chatKey);
+    };
+    markIfVisible();
+    document.addEventListener('visibilitychange', markIfVisible);
+    return () => document.removeEventListener('visibilitychange', markIfVisible);
+  }, [chatKey, markRead]);
 
   // Load the open chat's history.
   useEffect(() => {
@@ -206,26 +265,42 @@ export default function Chats() {
     else setSearchParams({ tab }, { replace: true });
   };
 
-  const send = async () => {
+  // Sends go out one after another so quick messages keep their order on the server.
+  const sendQueue = useRef<Promise<void>>(Promise.resolve());
+
+  // The message appears immediately ("Sending…"), then gets swapped for the saved one.
+  const send = () => {
     const text = draft.trim();
-    if (!text || !active || sending) return;
-    setSending(true);
+    if (!text || !active || !user) return;
+    const { kind, id } = active;
+    const key = `${kind}:${id}`;
+    const reply = replyingTo;
+    const temp: ChatMessage = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      text,
+      createdAt: new Date().toISOString(),
+      sender: { id: user.id, name: user.name, avatar: user.avatar },
+      replyTo: reply ? { id: reply.id, text: reply.text, sender: { id: reply.sender.id, name: reply.sender.name } } : null,
+      pending: true,
+    };
+
+    appendMessage(key, temp);
+    if (kind === 'groups') setGroups((prev) => bumpConversation(prev, id, temp));
+    else setInquiries((prev) => bumpConversation(prev, id, temp));
+    setDraft('');
+    setReplyingTo(null);
     setSendError(null);
-    try {
-      const { data } = await api.post<ChatMessage>(`/chats/${active.kind}/${active.id}/messages`, {
-        text,
-        replyToId: replyingTo?.id,
-      });
-      appendMessage(`${active.kind}:${active.id}`, data); // de-duplicates if the socket push arrived first
-      if (active.kind === 'groups') setGroups((prev) => bumpConversation(prev, active.id, data));
-      else setInquiries((prev) => bumpConversation(prev, active.id, data));
-      setDraft('');
-      setReplyingTo(null);
-    } catch (error) {
-      setSendError(apiErrorMessage(error, 'Message not sent. Please try again.'));
-    } finally {
-      setSending(false);
-    }
+
+    sendQueue.current = sendQueue.current.then(async () => {
+      try {
+        const { data } = await api.post<ChatMessage>(`/chats/${kind}/${id}/messages`, { text, replyToId: reply?.id });
+        settleMessage(key, temp.id, data);
+      } catch (error) {
+        settleMessage(key, temp.id, null);
+        setDraft((d) => d || text); // give the text back so it can be re-sent
+        setSendError(apiErrorMessage(error, 'Message not sent. Please try again.'));
+      }
+    });
   };
 
   const startReply = (m: ChatMessage) => {
@@ -245,7 +320,10 @@ export default function Chats() {
 
   return (
     <div className="flex flex-col lg:h-[calc(100vh-140px)]">
-      <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-1 lg:mb-4 shrink-0">Chats</h1>
+      <div className="flex items-center justify-between gap-3 mb-1 lg:mb-4 shrink-0">
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Chats</h1>
+        <AlertsToggle />
+      </div>
 
       {view === 'error' && <ErrorState onRetry={fetchChats} />}
 
@@ -266,6 +344,19 @@ export default function Chats() {
                   )}
                 >
                   {t.label}
+                  {(() => {
+                    const n = (t.id === 'groups' ? groups : inquiries).reduce((sum, c) => sum + c.unread, 0);
+                    return n > 0 ? (
+                      <span
+                        className={cn(
+                          'ml-1.5 inline-flex min-w-[18px] h-[18px] px-1 rounded-full items-center justify-center text-[10px] font-bold',
+                          tab === t.id ? 'bg-white text-blue-600' : 'bg-blue-600 text-white',
+                        )}
+                      >
+                        {n > 99 ? '99+' : n}
+                      </span>
+                    ) : null;
+                  })()}
                 </button>
               ))}
             </div>
@@ -299,14 +390,28 @@ export default function Chats() {
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-slate-900 truncate text-[15px] font-bold">{c.title}</span>
                         {c.lastMessage && (
-                          <span className="text-slate-400 shrink-0 text-xs">{fmtTime(c.lastMessage.createdAt)}</span>
+                          <span className={cn('shrink-0 text-xs', c.unread > 0 ? 'text-blue-600 font-semibold' : 'text-slate-400')}>
+                            {fmtTime(c.lastMessage.createdAt)}
+                          </span>
                         )}
                       </div>
-                      <span className="block text-slate-500 truncate text-[13px]">
-                        {c.lastMessage
-                          ? `${c.lastMessage.sender.id === user?.id ? 'You' : c.lastMessage.sender.name.split(' ')[0]}: ${c.lastMessage.text}`
-                          : 'No messages yet. Say hi 👋'}
-                      </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={cn(
+                            'block truncate text-[13px]',
+                            c.unread > 0 ? 'text-slate-900 font-semibold' : 'text-slate-500',
+                          )}
+                        >
+                          {c.lastMessage
+                            ? `${c.lastMessage.sender.id === user?.id ? 'You' : c.lastMessage.sender.name.split(' ')[0]}: ${c.lastMessage.text}`
+                            : 'No messages yet. Say hi 👋'}
+                        </span>
+                        {c.unread > 0 && (
+                          <span className="bg-blue-600 text-white rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center shrink-0 text-[11px] font-bold">
+                            {c.unread > 99 ? '99+' : c.unread}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </button>
                 ))
@@ -352,8 +457,8 @@ export default function Chats() {
                       showName={active.kind === 'groups'}
                       highlighted={highlightId === m.id}
                       nameFor={nameFor}
-                      // The join pitch isn't a saved message, so it can't be replied to.
-                      onReply={m.id.startsWith('pitch-') ? undefined : () => startReply(m)}
+                      // The join pitch and not-yet-saved messages can't be replied to.
+                      onReply={m.id.startsWith('pitch-') || m.pending ? undefined : () => startReply(m)}
                       onJumpTo={jumpTo}
                     />
                   ))}
@@ -388,7 +493,7 @@ export default function Chats() {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') void send();
+                        if (e.key === 'Enter') send();
                         if (e.key === 'Escape') setReplyingTo(null);
                       }}
                       maxLength={1000}
@@ -397,8 +502,8 @@ export default function Chats() {
                     />
                     <button
                       type="button"
-                      onClick={() => void send()}
-                      disabled={sending || !draft.trim()}
+                      onClick={send}
+                      disabled={!draft.trim()}
                       aria-label="Send"
                       className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white flex items-center justify-center transition-colors shrink-0"
                     >
@@ -416,6 +521,38 @@ export default function Chats() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ── Alerts on/off toggle: blue = on, grey = off ─────────────────────────────── */
+function AlertsToggle() {
+  const [on, setOn] = useState(alertsEnabled);
+
+  const toggle = () => {
+    const next = !on;
+    setAlertsEnabled(next);
+    setOn(next);
+    // Turning alerts on is the moment to ask for desktop notifications (only asked once by the browser).
+    if (next && 'Notification' in window && Notification.permission === 'default') {
+      void Notification.requestPermission();
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-pressed={on}
+      title={on ? 'New-message alerts are on. Click to mute them' : 'New-message alerts are off. Click to turn them on'}
+      className={cn(
+        'flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors',
+        on
+          ? 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
+          : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600',
+      )}
+    >
+      {on ? <BellRing size={15} /> : <BellOff size={15} />} {on ? 'Alerts on' : 'Alerts off'}
+    </button>
   );
 }
 
@@ -510,7 +647,8 @@ function MessageRow({
           )}
           <div
             className={cn(
-              'rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words transition-shadow',
+              'rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words transition-[box-shadow,opacity]',
+              m.pending && 'opacity-70',
               fromMe
                 ? 'bg-blue-600 text-white rounded-br-md'
                 : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md',
@@ -535,7 +673,7 @@ function MessageRow({
             {m.text}
           </div>
           <p className={cn('text-slate-400 mt-1 text-[11px]', fromMe ? 'text-right mr-1' : 'ml-1')}>
-            {fmtTime(m.createdAt)}
+            {m.pending ? 'Sending…' : fmtTime(m.createdAt)}
           </p>
         </div>
         {!fromMe && replyButton}

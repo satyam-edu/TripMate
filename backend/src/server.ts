@@ -10,6 +10,7 @@ import tripRoutes from './routes/trip.routes';
 import requestRoutes from './routes/request.routes';
 import authRoutes from './routes/auth.routes';
 import chatRoutes from './routes/chat.routes';
+import notificationRoutes from './routes/notification.routes';
 import { initSocket } from './socket';
 
 dotenv.config();
@@ -65,6 +66,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ── 404 Fallback ─────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {

@@ -6,7 +6,8 @@ import type { Trip } from '../types';
 import type { AuthUser } from '../context/AuthContext';
 import TripCard from '../components/TripCard';
 import { Avatar, Pill, SectionHeader, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
-import { Search, Bell, Compass, UserPlus, Check, MessageCircle, X } from 'lucide-react';
+import { Search, Bell, Compass, UserPlus, Check, X } from 'lucide-react';
+import { getSocket } from '../services/socket';
 
 /* ── Categories (client-side filter over trip.tags) ─────────────────────────── */
 const CATEGORIES = ['Mountains', 'Beaches', 'Culture', 'Adventure', 'Wildlife', 'Road Trip'] as const;
@@ -25,25 +26,31 @@ const TRENDING: { name: string; image: string }[] = [
 
 const HERO_IMG = 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?w=1400&h=500&fit=crop&auto=format';
 
-/* ── Notifications (mock shell) ─────────────────────────────────────────────── */
-type NotificationType = 'NEW_REQUEST' | 'ACCEPTED' | 'MESSAGE';
+/* ── Notifications (real: GET /api/notifications + live socket push) ───────── */
+type NotificationType = 'NEW_REQUEST' | 'REQUEST_APPROVED' | 'REQUEST_DECLINED';
 interface AppNotification {
   id: string;
   type: NotificationType;
   text: string;
-  time: string;
+  link: string; // in-app path to open
   read: boolean;
+  createdAt: string;
 }
-const INITIAL_NOTIFICATIONS: AppNotification[] = [
-  { id: 'n1', type: 'NEW_REQUEST', text: 'Rohan requested to join Spiti Valley', time: '2m ago', read: false },
-  { id: 'n2', type: 'ACCEPTED', text: 'Your request for Goa Coastline was accepted!', time: '1h ago', read: false },
-  { id: 'n3', type: 'MESSAGE', text: 'New message in Manali & Kasol group', time: '3h ago', read: true },
-];
 const NOTI_META: Record<NotificationType, { Icon: typeof UserPlus; bg: string; fg: string }> = {
   NEW_REQUEST: { Icon: UserPlus, bg: 'bg-blue-50', fg: 'text-blue-600' },
-  ACCEPTED: { Icon: Check, bg: 'bg-emerald-50', fg: 'text-emerald-600' },
-  MESSAGE: { Icon: MessageCircle, bg: 'bg-violet-50', fg: 'text-violet-600' },
+  REQUEST_APPROVED: { Icon: Check, bg: 'bg-emerald-50', fg: 'text-emerald-600' },
+  REQUEST_DECLINED: { Icon: X, bg: 'bg-red-50', fg: 'text-red-500' },
 };
+
+// "just now", "5m ago", "3h ago", "2d ago", then a date.
+function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60 * 24) return `${Math.floor(mins / 60)}h ago`;
+  if (mins < 60 * 24 * 7) return `${Math.floor(mins / (60 * 24))}d ago`;
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -263,25 +270,65 @@ function HomeFeed({
   );
 }
 
-/* ── Notifications bell + dropdown shell ────────────────────────────────────── */
+/* ── Notifications bell + dropdown ──────────────────────────────────────────── */
 function NotificationsBell() {
+  const { token } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
-  const unread = notifications.filter((n) => !n.read).length;
-  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    api
+      .get<{ items: AppNotification[]; unread: number }>('/notifications')
+      .then(({ data }) => {
+        setNotifications(data.items);
+        setUnread(data.unread);
+      })
+      .catch((error) => console.error('[Notifications] fetch failed', error));
+  }, []);
+
+  // New notifications arrive live while the page is open.
+  useEffect(() => {
+    if (!token) return;
+    const socket = getSocket(token);
+    const onNotification = (n: AppNotification) => {
+      setNotifications((prev) => [n, ...prev].slice(0, 30));
+      setUnread((u) => u + 1);
+    };
+    socket.on('notification', onNotification);
+    return () => {
+      socket.off('notification', onNotification);
+    };
+  }, [token]);
+
+  const markAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnread(0);
+    try {
+      await api.post('/notifications/read-all');
+    } catch (error) {
+      console.error('[Notifications] mark read failed', error);
+    }
+  };
+
+  const openNotification = (n: AppNotification) => {
+    setOpen(false);
+    navigate(n.link);
+  };
 
   return (
     <div className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label="Notifications"
+        aria-label={unread > 0 ? `Notifications (${unread} unread)` : 'Notifications'}
         className="relative w-11 h-11 rounded-full bg-white border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:text-[#2563EB] transition-colors"
       >
         <Bell size={20} />
         {unread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
-            {unread}
+            {unread > 9 ? '9+' : unread}
           </span>
         )}
       </button>
@@ -307,7 +354,7 @@ function NotificationsBell() {
               {notifications.length === 0 ? (
                 <p className="text-[#94A3B8] text-sm text-center py-8">You're all caught up 🎉</p>
               ) : (
-                notifications.map((n) => <NotificationRow key={n.id} n={n} />)
+                notifications.map((n) => <NotificationRow key={n.id} n={n} onOpen={() => openNotification(n)} />)
               )}
             </div>
           </div>
@@ -317,20 +364,27 @@ function NotificationsBell() {
   );
 }
 
-function NotificationRow({ n }: { n: AppNotification }) {
+function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: () => void }) {
   const meta = NOTI_META[n.type];
   const Icon = meta.Icon;
   return (
-    <div className={cn('flex items-start gap-3 px-4 py-3 border-b border-slate-50 last:border-0', !n.read && 'bg-blue-50/60')}>
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(
+        'w-full text-left flex items-start gap-3 px-4 py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors',
+        !n.read && 'bg-blue-50/60',
+      )}
+    >
       <span className={cn('w-9 h-9 rounded-full flex items-center justify-center shrink-0', meta.bg)}>
         <Icon size={16} className={meta.fg} />
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-[#334155] text-[13px] leading-snug">{n.text}</p>
-        <p className="text-[#94A3B8] text-[11px] mt-0.5">{n.time}</p>
+        <p className="text-[#94A3B8] text-[11px] mt-0.5">{timeAgo(n.createdAt)}</p>
       </div>
       {!n.read && <span className="w-2 h-2 rounded-full bg-[#2563EB] shrink-0 mt-1.5" />}
-    </div>
+    </button>
   );
 }
 

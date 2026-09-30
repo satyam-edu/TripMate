@@ -38,9 +38,9 @@ TripMate/
 ├── backend/             # Express + Prisma API
 │   ├── prisma/          # schema, migrations, seed scripts
 │   └── src/
-│       ├── controllers/ # auth, user, trip, request, chat
+│       ├── controllers/ # auth, user, trip, request, chat, notification
 │       ├── middlewares/ # JWT verification
-│       ├── routes/      # /api/auth, /api/users, /api/trips, /api/requests, /api/chats
+│       ├── routes/      # /api/auth, /api/users, /api/trips, /api/requests, /api/chats, /api/notifications
 │       └── server.ts    # app entry
 └── tripmate/            # Vite + React frontend
     └── src/
@@ -134,9 +134,13 @@ Base URL: `/api`
 | `GET` | `/requests/received` | ✅ | Requests for your hosted trips |
 | `GET` | `/requests/sent` | ✅ | Requests you've sent |
 | `PATCH` | `/requests/:id` | ✅ | Approve / reject a request |
-| `GET` | `/chats` | ✅ | Your group and inquiry chats (with latest message) |
+| `GET` | `/chats` | ✅ | Your group and inquiry chats (with latest message and unread count) |
+| `GET` | `/chats/unread-count` | ✅ | Total unread messages across all chats |
 | `GET` | `/chats/:kind/:id/messages` | ✅ | Messages of one chat (`kind` = `groups` + tripId, or `inquiries` + requestId) |
 | `POST` | `/chats/:kind/:id/messages` | ✅ | Send a message (pushed live over Socket.IO) |
+| `POST` | `/chats/:kind/:id/read` | ✅ | Mark a chat as read |
+| `GET` | `/notifications` | ✅ | Latest 30 notifications + unread count |
+| `POST` | `/notifications/read-all` | ✅ | Mark all notifications as read |
 
 Authenticated routes expect `Authorization: Bearer <jwt>`.
 

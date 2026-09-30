@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import api from '../services/api';
+import { closeSocket } from '../services/socket';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AuthUser {
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    closeSocket();
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setToken(null);

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2, Star } from 'lucide-react';
+import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2, Star, Mail, Phone, Check } from 'lucide-react';
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
+import { firebaseAuth } from '../services/firebase';
 import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage } from '../services/api';
 import type { Trip } from '../types';
@@ -54,6 +56,146 @@ function SocialIcon({ url, size = 16 }: { url: string; size?: number }) {
     );
   }
   return <Link2 size={size} />;
+}
+
+// Trust checklist: Google email (auto) + phone OTP (Firebase) → blue tick.
+function VerificationPanel({ user, onVerified }: { user: AuthUser; onVerified: (partial: Partial<AuthUser>) => void }) {
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+
+  const sendCode = async () => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10) {
+      setError('Enter a valid phone number with country code, e.g. +919876543210.');
+      return;
+    }
+    const fullPhone = phone.trim().startsWith('+') ? phone.trim() : `+91${digits}`;
+    setBusy(true);
+    setError('');
+    try {
+      if (!recaptchaRef.current) {
+        recaptchaRef.current = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', { size: 'invisible' });
+      }
+      const result = await signInWithPhoneNumber(firebaseAuth, fullPhone, recaptchaRef.current);
+      setConfirmation(result);
+    } catch (err) {
+      console.error('[VerificationPanel] sendCode failed', err);
+      const code = (err as { code?: string }).code ?? '';
+      setError(
+        code === 'auth/invalid-phone-number'
+          ? 'That phone number looks invalid. Include the country code, e.g. +91.'
+          : code === 'auth/too-many-requests'
+            ? 'Too many attempts. Please wait a while and try again.'
+            : `Could not send the code${code ? ` (${code})` : ''}. Please try again.`,
+      );
+      recaptchaRef.current?.clear();
+      recaptchaRef.current = null;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    if (!confirmation) return;
+    setBusy(true);
+    setError('');
+    try {
+      const cred = await confirmation.confirm(code.trim());
+      const idToken = await cred.user.getIdToken();
+      await firebaseAuth.signOut();
+      const { data } = await api.post('/users/me/phone/verify', { idToken });
+      onVerified(data);
+      setPhoneOpen(false);
+      setConfirmation(null);
+      setPhone('');
+      setCode('');
+    } catch (err) {
+      console.error('[VerificationPanel] verifyCode failed', err);
+      setError(apiErrorMessage(err, 'Wrong or expired code. Try again.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const steps = [
+    { key: 'email', label: 'Google email verified', done: true, icon: Mail },
+    { key: 'phone', label: 'Phone number verified', done: user.phoneVerified, icon: Phone },  ];
+
+  return (
+    <div className="mt-5 bg-blue-50/60 border border-blue-100 rounded-2xl p-4">
+      <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+        <BadgeCheck size={16} className="text-blue-600" /> Get the blue tick
+      </p>
+      <p className="text-xs text-slate-500 mt-0.5">Complete both to show other travellers your account is genuine.</p>
+
+      <div className="mt-3 space-y-2">
+        {steps.map((s) => (
+          <div key={s.key} className="flex items-center justify-between gap-3 bg-white rounded-xl px-3 py-2 border border-slate-100">
+            <span className="flex items-center gap-2 text-sm text-slate-700">
+              <s.icon size={15} className="text-slate-400" /> {s.label}
+            </span>
+            {s.done ? (
+              <span className="flex items-center gap-1 text-emerald-600 text-xs font-semibold">
+                <Check size={14} /> Done
+              </span>
+            ) : s.key === 'phone' ? (
+              <button
+                onClick={() => setPhoneOpen((v) => !v)}
+                className="text-xs font-semibold text-blue-600 hover:underline"
+              >
+                Verify
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      {phoneOpen && (
+        <div className="mt-3 bg-white rounded-xl border border-slate-100 p-3 space-y-2">
+          {!confirmation ? (
+            <>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
+              />
+              <button
+                onClick={sendCode}
+                disabled={busy}
+                className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-60"
+              >
+                {busy ? 'Sending…' : 'Send OTP'}
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Enter 6-digit code"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
+              />
+              <button
+                onClick={verifyCode}
+                disabled={busy}
+                className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-60"
+              >
+                {busy ? 'Verifying…' : 'Verify OTP'}
+              </button>
+            </>
+          )}
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+      )}
+      <div id="recaptcha-container" />
+    </div>
+  );
 }
 
 export default function Profile() {
@@ -167,10 +309,11 @@ export default function Profile() {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight truncate">{name}</h1>
-              {/* Trust signal: Google-verified identity */}
-              <span title="Verified via Google" className="text-blue-600 shrink-0">
-                <BadgeCheck size={20} />
-              </span>
+              {user?.verified && (
+                <span title="Verified account" className="text-blue-600 shrink-0">
+                  <BadgeCheck size={20} />
+                </span>
+              )}
             </div>
             <p className="text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
               {avgRating !== null && (
@@ -227,6 +370,8 @@ export default function Profile() {
             </span>
           ))}
         </div>
+
+        {user && !user.verified && <VerificationPanel user={user} onVerified={updateUser} />}
       </div>
 
       {/* ── Reviews about you ───────────────────────────────────────────────── */}

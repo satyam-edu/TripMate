@@ -44,6 +44,8 @@ model User {
   bio       String?
   location     String? // e.g., "Delhi, India"
   socialHandle String? // Instagram / LinkedIn URL, social proof for trust
+  phoneVerified      Boolean @default(false)
+  verified           Boolean @default(false) // blue tick: true when email (Google) + phone are verified
   tags      String[] // e.g., ["Backpacker", "Luxury"]
   trips     Trip[]   @relation("HostTrips") // Trips this user created
   requests  Request[] // Trips this user has requested to join

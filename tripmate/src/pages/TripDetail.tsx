@@ -8,6 +8,7 @@ import {
   MapPin,
   MessageCircle,
   Share2,
+  Star,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -99,6 +100,7 @@ export default function TripDetail() {
   const spotsFilled = trip.members.length + 1; // host takes a spot
   const isFull = spotsFilled >= trip.maxGuests;
   const hasStarted = new Date(trip.startDate) <= new Date();
+  const hasEnded = new Date(trip.endDate) <= new Date();
   const status = trip.myRequest?.status;
   const hostFirst = trip.host.name.split(' ')[0];
   const cover =
@@ -217,6 +219,8 @@ export default function TripDetail() {
               </p>
             )}
           </section>
+
+          {hasEnded && (isHost || status === 'APPROVED') && <ReviewSection tripId={trip.id} />}
         </div>
 
         {/* ── Right: action + host ──────────────────────────────────────────── */}
@@ -350,6 +354,122 @@ function StatusPill({ tone, children }: { tone: 'green' | 'blue' | 'red' | 'grey
     grey: 'bg-slate-100 text-slate-600',
   };
   return <p className={cn('rounded-2xl px-4 py-3 text-sm font-semibold', tones[tone])}>{children}</p>;
+}
+
+/* ── Rate your trip: shown once the trip has ended, to the host and approved travellers ── */
+interface ReviewPerson {
+  id: string;
+  name: string;
+  avatar: string | null;
+}
+interface ReviewState {
+  eligible: boolean;
+  pending: ReviewPerson[];
+  given: { revieweeId: string; rating: number; text: string | null }[];
+}
+
+function ReviewSection({ tripId }: { tripId: string }) {
+  const [state, setState] = useState<ReviewState | null>(null);
+  const [rating, setRating] = useState<Record<string, number>>({});
+  const [text, setText] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => {
+    api
+      .get<ReviewState>(`/trips/${tripId}/reviews`)
+      .then(({ data }) => setState(data))
+      .catch((err) => console.error('[ReviewSection] load failed', err));
+  };
+  useEffect(load, [tripId]);
+
+  if (!state?.eligible) return null;
+
+  const submit = async (person: ReviewPerson) => {
+    const stars = rating[person.id] ?? 0;
+    if (stars < 1) {
+      setError('Pick a star rating first.');
+      return;
+    }
+    setSubmitting(person.id);
+    setError(null);
+    try {
+      await api.post(`/trips/${tripId}/reviews`, { revieweeId: person.id, rating: stars, text: text[person.id]?.trim() });
+      load();
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not save your review. Please try again.'));
+    } finally {
+      setSubmitting(null);
+    }
+  };
+
+  return (
+    <section className="bg-white border border-slate-200 rounded-3xl p-5">
+      <h2 className="text-slate-900 font-bold text-lg mb-1">Rate your trip</h2>
+      <p className="text-slate-500 text-sm mb-4">Help other travellers know who to trust.</p>
+
+      {state.pending.length === 0 && state.given.length === 0 && (
+        <p className="text-slate-400 text-sm">Nothing to review — you were on this trip alone.</p>
+      )}
+
+      {state.pending.map((person) => (
+        <div key={person.id} className="flex items-start gap-3 py-3 border-t border-slate-100 first:border-0 first:pt-0">
+          <Avatar src={person.avatar} name={person.name} size={40} />
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-900 font-semibold text-[15px] truncate">{person.name}</p>
+            <StarPicker
+              value={rating[person.id] ?? 0}
+              onChange={(v) => setRating((r) => ({ ...r, [person.id]: v }))}
+            />
+            <textarea
+              value={text[person.id] ?? ''}
+              onChange={(e) => setText((t) => ({ ...t, [person.id]: e.target.value }))}
+              rows={2}
+              maxLength={500}
+              placeholder="Optional note about travelling with them…"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 resize-none"
+            />
+            <button
+              type="button"
+              onClick={() => void submit(person)}
+              disabled={submitting === person.id}
+              className="mt-2 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-1.5 transition-colors"
+            >
+              {submitting === person.id ? 'Saving…' : 'Submit review'}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {state.given.length > 0 && (
+        <p className="text-emerald-600 text-sm font-semibold mt-1">
+          {state.pending.length === 0 ? 'You reviewed everyone on this trip. Thanks!' : `${state.given.length} review(s) submitted.`}
+        </p>
+      )}
+
+      {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+    </section>
+  );
+}
+
+function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex gap-0.5 mt-1.5" role="radiogroup" aria-label="Rating">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={value === n}
+          aria-label={`${n} star${n > 1 ? 's' : ''}`}
+          onClick={() => onChange(n)}
+          className="text-amber-400 hover:scale-110 transition-transform"
+        >
+          <Star size={20} fill={n <= value ? 'currentColor' : 'none'} strokeWidth={1.75} />
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function DetailSkeleton() {

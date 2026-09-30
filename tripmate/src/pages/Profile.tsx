@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2, Star } from 'lucide-react';
 import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage } from '../services/api';
 import type { Trip } from '../types';
@@ -16,6 +16,15 @@ const VIBE_OPTIONS = [
 
 type ProfileTab = 'hosted' | 'joined';
 type ViewState = 'loading' | 'error' | 'ready';
+
+interface ProfileReview {
+  id: string;
+  rating: number;
+  text: string | null;
+  createdAt: string;
+  trip: { id: string; destination: string };
+  reviewer: { id: string; name: string; avatar: string | null };
+}
 
 function normalizeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -88,16 +97,23 @@ export default function Profile() {
   const [hosted, setHosted] = useState<Trip[]>([]);
   const [joined, setJoined] = useState<Trip[]>([]);
   const [view, setView] = useState<ViewState>('loading');
+  const [reviews, setReviews] = useState<ProfileReview[]>([]);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
 
   const fetchTrips = async () => {
     setView('loading');
     try {
-      const [hostedRes, joinedRes] = await Promise.all([
+      const [hostedRes, joinedRes, meRes] = await Promise.all([
         api.get<Trip[]>('/trips/hosted'),
         api.get<Trip[]>('/trips/joined'),
+        user ? api.get<{ reviews: ProfileReview[]; avgRating: number | null }>(`/users/${user.id}`) : null,
       ]);
       setHosted(hostedRes.data);
       setJoined(joinedRes.data);
+      if (meRes) {
+        setReviews(meRes.data.reviews);
+        setAvgRating(meRes.data.avgRating);
+      }
       setView('ready');
     } catch (error) {
       console.error('[Profile] fetch failed', error);
@@ -107,6 +123,7 @@ export default function Profile() {
 
   useEffect(() => {
     void fetchTrips();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount, like the other pages' fetch-on-load
   }, []);
 
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
@@ -157,8 +174,16 @@ export default function Profile() {
                 <BadgeCheck size={20} />
               </span>
             </div>
-            <p className="text-slate-500 flex items-center gap-1 text-sm mt-1">
-              <MapPin size={14} className="text-slate-400" /> {user?.location ?? 'Traveler'}
+            <p className="text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
+              {avgRating !== null && (
+                <span className="flex items-center gap-1 font-semibold text-slate-700">
+                  <Star size={14} className="text-amber-400" fill="currentColor" />
+                  {avgRating} <span className="text-slate-400 font-normal">({reviews.length})</span>
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <MapPin size={14} className="text-slate-400" /> {user?.location ?? 'Traveler'}
+              </span>
             </p>
           </div>
 
@@ -205,6 +230,34 @@ export default function Profile() {
           ))}
         </div>
       </div>
+
+      {/* ── Reviews about you ───────────────────────────────────────────────── */}
+      {reviews.length > 0 && (
+        <div className="mt-8 px-1">
+          <h2 className="text-slate-900 font-bold text-lg mb-4">
+            Reviews about you <span className="ml-1.5 text-slate-400 font-semibold">{reviews.length}</span>
+          </h2>
+          <div className="space-y-3">
+            {reviews.map((r) => (
+              <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar src={r.reviewer.avatar} name={r.reviewer.name} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-slate-900 font-semibold text-sm truncate">{r.reviewer.name}</p>
+                    <p className="text-slate-400 text-xs truncate">{r.trip.destination}</p>
+                  </div>
+                  <div className="flex gap-0.5 shrink-0 text-amber-400">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star key={i} size={13} fill={i < r.rating ? 'currentColor' : 'none'} strokeWidth={1.75} />
+                    ))}
+                  </div>
+                </div>
+                {r.text && <p className="text-slate-600 text-sm mt-2 leading-relaxed">{r.text}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
       <div className="mt-8 px-1">

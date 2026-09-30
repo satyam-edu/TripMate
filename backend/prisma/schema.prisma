@@ -10,6 +10,7 @@ enum NotificationType {
   NEW_REQUEST
   REQUEST_APPROVED
   REQUEST_DECLINED
+  REVIEW_RECEIVED
 }
 
 generator client {
@@ -40,6 +41,8 @@ model User {
   messages  Message[] // Chat messages this user sent
   notifications Notification[] // Bell notifications for this user
   chatReads     ChatRead[] // When this user last read each chat (for unread counts)
+  reviewsGiven    Review[] @relation("ReviewsGiven") // Reviews this user wrote
+  reviewsReceived Review[] @relation("ReviewsReceived") // Reviews written about this user
   createdAt DateTime @default(now())
 }
 
@@ -59,6 +62,7 @@ model Trip {
   description String?
   requests    Request[] // All the requests sent to this trip
   messages    Message[] // Group chat + inquiry messages for this trip
+  reviews     Review[] // Reviews left about the trip (host <-> travellers)
   createdAt   DateTime  @default(now())
 }
 
@@ -135,4 +139,22 @@ model Image {
   data      Bytes
   mimeType  String
   createdAt DateTime @default(now())
+}
+
+// 8. The Review Table (host <-> traveller ratings, once a trip has ended)
+model Review {
+  id         String   @id @default(uuid())
+  tripId     String
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  revieweeId String
+  reviewee   User     @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+  rating     Int      // 1-5
+  text       String?
+  createdAt  DateTime @default(now())
+
+  // One review per person, per trip, per direction.
+  @@unique([tripId, reviewerId, revieweeId])
+  @@index([revieweeId])
 }

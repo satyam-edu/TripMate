@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { BadgeCheck, Calendar, Compass, Link2, MapPin, Wallet } from 'lucide-react';
+import { BadgeCheck, Calendar, Compass, Link2, MapPin, Star, Wallet } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor } from '../components/ui-bits';
@@ -28,6 +28,15 @@ interface PublicUser {
   tags: string[];
   createdAt: string;
   trips: PublicTrip[];
+  avgRating: number | null;
+  reviews: {
+    id: string;
+    rating: number;
+    text: string | null;
+    createdAt: string;
+    trip: { id: string; destination: string };
+    reviewer: { id: string; name: string; avatar: string | null };
+  }[];
 }
 
 type ViewState = 'loading' | 'notfound' | 'error' | 'ready';
@@ -110,6 +119,12 @@ export default function PublicProfile() {
           </span>
         </div>
         <p className="text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
+          {profile.avgRating !== null && (
+            <span className="flex items-center gap-1 font-semibold text-slate-700">
+              <Star size={14} className="text-amber-400" fill="currentColor" />
+              {profile.avgRating} <span className="text-slate-400 font-normal">({profile.reviews.length})</span>
+            </span>
+          )}
           {profile.location && (
             <span className="flex items-center gap-1">
               <MapPin size={14} className="text-slate-400" /> {profile.location}
@@ -141,6 +156,34 @@ export default function PublicProfile() {
           </div>
         )}
       </div>
+
+      {/* ── Reviews ─────────────────────────────────────────────────────────── */}
+      {profile.reviews.length > 0 && (
+        <div className="mt-8 px-1">
+          <h2 className="text-slate-900 font-bold text-lg mb-4">
+            Reviews <span className="ml-1.5 text-slate-400 font-semibold">{profile.reviews.length}</span>
+          </h2>
+          <div className="space-y-3">
+            {profile.reviews.map((r) => (
+              <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar src={r.reviewer.avatar} name={r.reviewer.name} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-slate-900 font-semibold text-sm truncate">{r.reviewer.name}</p>
+                    <p className="text-slate-400 text-xs truncate">{r.trip.destination}</p>
+                  </div>
+                  <div className="flex gap-0.5 shrink-0 text-amber-400">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star key={i} size={13} fill={i < r.rating ? 'currentColor' : 'none'} strokeWidth={1.75} />
+                    ))}
+                  </div>
+                </div>
+                {r.text && <p className="text-slate-600 text-sm mt-2 leading-relaxed">{r.text}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Hosted trips ────────────────────────────────────────────────────── */}
       <div className="mt-8 px-1">

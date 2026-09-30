@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { getTripReviewState, createReview } from '../controllers/review.controller';
 import {
   createTrip,
   getAllTrips,
@@ -27,5 +28,7 @@ router.get('/joined', verifyToken, getJoinedTrips);
 router.get('/:id', verifyToken, getTrip);
 router.patch('/:id', verifyToken, updateTrip);
 router.delete('/:id', verifyToken, deleteTrip);
+router.get('/:id/reviews', verifyToken, getTripReviewState);
+router.post('/:id/reviews', verifyToken, createReview);
 
 export default router;

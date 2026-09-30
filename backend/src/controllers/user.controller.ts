@@ -23,6 +23,17 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
         trips: {
           orderBy: { startDate: 'asc' },
         },
+        reviewsReceived: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            rating: true,
+            text: true,
+            createdAt: true,
+            trip: { select: { id: true, destination: true } },
+            reviewer: { select: { id: true, name: true, avatar: true } },
+          },
+        },
       },
     });
 
@@ -31,7 +42,13 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    res.status(200).json(user);
+    const { reviewsReceived, ...rest } = user;
+    const avgRating =
+      reviewsReceived.length > 0
+        ? Math.round((reviewsReceived.reduce((sum, r) => sum + r.rating, 0) / reviewsReceived.length) * 10) / 10
+        : null;
+
+    res.status(200).json({ ...rest, reviews: reviewsReceived, avgRating });
   } catch (error) {
     console.error('[getUser]', error);
     res.status(500).json({ error: 'Internal server error.' });

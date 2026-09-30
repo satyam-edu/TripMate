@@ -134,6 +134,8 @@ Base URL: `/api`
 | `GET` | `/trips/hosted` | ✅ | Trips you've hosted |
 | `GET` | `/trips/joined` | ✅ | Trips you've joined |
 | `GET` | `/trips/:id` | ✅ | One trip: host, who's going, and your request status |
+| `GET` | `/trips/:id/reviews` | ✅ | Who you can still review on this trip |
+| `POST` | `/trips/:id/reviews` | ✅ | Leave a 1-5 star review (host ↔ traveller, once the trip has ended) |
 | `POST` | `/trips/:id/join` | ✅ | Request to join a trip |
 | `POST` | `/requests` | ✅ | Send a join request |
 | `GET` | `/requests/received` | ✅ | Requests for your hosted trips |

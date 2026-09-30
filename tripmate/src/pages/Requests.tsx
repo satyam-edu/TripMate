@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Inbox, MapPin, MessageCircle } from 'lucide-react';
 import api, { apiErrorMessage } from '../services/api';
 import { Avatar, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
@@ -151,9 +151,13 @@ export default function Requests() {
                 key={r.id}
                 className="bg-white border border-slate-200 rounded-3xl p-4 flex items-center gap-4 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
               >
-                <Avatar src={r.user.avatar} name={r.user.name} size={52} />
+                <Link to={`/users/${r.user.id}`} className="shrink-0">
+                  <Avatar src={r.user.avatar} name={r.user.name} size={52} />
+                </Link>
                 <div className="flex-1 min-w-0">
-                  <p className="text-slate-900 text-[15px] font-bold truncate">{r.user.name}</p>
+                  <Link to={`/users/${r.user.id}`} className="text-slate-900 text-[15px] font-bold truncate hover:text-blue-600 transition-colors block">
+                    {r.user.name}
+                  </Link>
                   <p className="text-slate-500 flex items-center gap-1 truncate text-[13px]">
                     <MapPin size={13} className="text-slate-400 shrink-0" />
                     wants to join {r.trip.destination}

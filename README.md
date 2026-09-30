@@ -124,6 +124,7 @@ Base URL: `/api`
 | `GET` | `/health` | None | Health check |
 | `POST` | `/auth/google` | None | Exchange Google access token for app JWT |
 | `GET` | `/users/me` | ✅ | Current user profile |
+| `GET` | `/users/:id` | — | Public profile: bio, location, social link, hosted trips |
 | `PATCH` | `/users/me` | ✅ | Update profile |
 | `PUT` | `/users/me/photo/:kind` | ✅ | Upload profile photo or cover (`kind` = `avatar` / `cover`, raw image body) |
 | `DELETE` | `/users/me/photo/:kind` | ✅ | Remove profile photo or cover |

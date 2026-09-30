@@ -145,13 +145,15 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <Avatar src={trip.host.avatar} name={trip.host.name} size={28} />
-            <span className="text-[#64748B] truncate" style={{ fontSize: 13 }}>
-              Hosted by{' '}
-              <span className="text-[#0F172A]" style={{ fontWeight: 600 }}>
-                {hostFirstName}
+            <Link to={`/users/${trip.hostId}`} className="flex items-center gap-2 min-w-0 group">
+              <Avatar src={trip.host.avatar} name={trip.host.name} size={28} />
+              <span className="text-[#64748B] truncate" style={{ fontSize: 13 }}>
+                Hosted by{' '}
+                <span className="text-[#0F172A] group-hover:text-[#2563EB] transition-colors" style={{ fontWeight: 600 }}>
+                  {hostFirstName}
+                </span>
               </span>
-            </span>
+            </Link>
           </div>
 
           {/* CTA */}

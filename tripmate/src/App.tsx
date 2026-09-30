@@ -8,6 +8,7 @@ import Requests from './pages/Requests';
 import Chats from './pages/Chats';
 import Profile from './pages/Profile';
 import TripDetail from './pages/TripDetail';
+import PublicProfile from './pages/PublicProfile';
 
 // Guards the authenticated app: redirect to /login when signed out, render the
 // shell (sidebar + bottom nav + <Outlet/>) when signed in.
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/chats" element={<Chats />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/trips/:id" element={<TripDetail />} />
+        <Route path="/users/:id" element={<PublicProfile />} />
       </Route>
 
       {/* Fallback */}

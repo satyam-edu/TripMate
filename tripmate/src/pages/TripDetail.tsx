@@ -161,9 +161,16 @@ export default function TripDetail() {
           {copied ? <Check size={15} className="text-emerald-600" /> : <Share2 size={15} />}
           {copied ? 'Link copied' : 'Share'}
         </button>
-        <div className="absolute bottom-5 left-5 right-5">
+        <div className="absolute bottom-5 left-5 right-5 flex flex-col-reverse sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-white text-3xl sm:text-4xl font-extrabold tracking-tight truncate">{trip.destination}</h1>
+            <p className="text-white/80 flex items-center gap-1 text-sm mt-1">
+              <MapPin size={14} /> {trip.country}
+            </p>
+          </div>
+          {/* Categories: below the title on phones, bottom-right corner of the cover from sm+ */}
           {trip.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
+            <div className="flex flex-wrap gap-1.5 sm:justify-end sm:max-w-[50%] sm:shrink-0">
               {trip.tags.slice(0, 4).map((t) => (
                 <span key={t} className={cn('rounded-full px-3 py-1 text-xs font-semibold text-white', tagColor(t))}>
                   {t}
@@ -171,10 +178,6 @@ export default function TripDetail() {
               ))}
             </div>
           )}
-          <h1 className="text-white text-3xl sm:text-4xl font-extrabold tracking-tight">{trip.destination}</h1>
-          <p className="text-white/80 flex items-center gap-1 text-sm mt-1">
-            <MapPin size={14} /> {trip.country}
-          </p>
         </div>
       </div>
 
@@ -278,17 +281,17 @@ export default function TripDetail() {
           {/* Host card */}
           <section className="bg-white border border-slate-200 rounded-3xl p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Hosted by</p>
-            <div className="flex items-center gap-3">
+            <Link to={`/users/${trip.hostId}`} className="flex items-center gap-3 group">
               <Avatar src={trip.host.avatar} name={trip.host.name} size={52} />
               <div className="min-w-0">
-                <p className="text-slate-900 font-bold truncate">{trip.host.name}</p>
+                <p className="text-slate-900 font-bold truncate group-hover:text-blue-600 transition-colors">{trip.host.name}</p>
                 {trip.host.location && (
                   <p className="text-slate-500 text-sm flex items-center gap-1 truncate">
                     <MapPin size={13} /> {trip.host.location}
                   </p>
                 )}
               </div>
-            </div>
+            </Link>
             {trip.host.bio && <p className="text-slate-600 text-sm mt-3 leading-relaxed">{trip.host.bio}</p>}
             {trip.host.socialHandle && (
               <a

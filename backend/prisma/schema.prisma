@@ -30,6 +30,7 @@ model User {
   tags      String[] // e.g., ["Backpacker", "Luxury"]
   trips     Trip[]   @relation("HostTrips") // Trips this user created
   requests  Request[] // Trips this user has requested to join
+  messages  Message[] // Chat messages this user sent
   createdAt DateTime @default(now())
 }
 
@@ -48,6 +49,7 @@ model Trip {
   coverImage  String?
   description String?
   requests    Request[] // All the requests sent to this trip
+  messages    Message[] // Group chat + inquiry messages for this trip
   createdAt   DateTime  @default(now())
 }
 
@@ -60,8 +62,31 @@ model Request {
   user      User     @relation(fields: [userId], references: [id])
   status    RequestStatus @default(PENDING)
   message   String?
+  messages  Message[] // 1-on-1 inquiry chat between the requester and the host
   createdAt DateTime      @default(now())
 
   // This strict rule prevents a user from spam-clicking "Join" on the same trip
   @@unique([tripId, userId])
+}
+
+// 4. The Message Table (Chats)
+// requestId null → trip group chat (host + approved travellers)
+// requestId set  → inquiry chat (requester + host)
+model Message {
+  id        String   @id @default(uuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  requestId String?
+  request   Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  text      String
+  // Optional quoted message this one replies to (same chat). Deleting it keeps the reply.
+  replyToId String?
+  replyTo   Message?  @relation("Replies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("Replies")
+  createdAt DateTime @default(now())
+
+  @@index([tripId, createdAt])
+  @@index([requestId, createdAt])
 }

@@ -1,159 +1,181 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Send, ChevronLeft, Phone, MoreVertical, MessageCircle } from 'lucide-react';
-import { Avatar, cn } from '../components/ui-bits';
+import { Send, ChevronLeft, MessageCircle, Reply, X } from 'lucide-react';
+import { io } from 'socket.io-client';
+import api, { apiErrorMessage } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { Avatar, Skeleton, ErrorState, cn, formatDateRange } from '../components/ui-bits';
 
-/* ── Types ──────────────────────────────────────────────────────────────────── */
+/* ── Types (match backend payloads) ─────────────────────────────────────────── */
 type ChatTab = 'groups' | 'inquiries';
+type ViewState = 'loading' | 'error' | 'ready';
 
-interface Message {
+interface ChatMessage {
   id: string;
-  fromMe: boolean;
   text: string;
-  time: string;
-  authorName?: string;
-  authorAvatar?: string | null;
+  createdAt: string;
+  sender: { id: string; name: string; avatar: string | null };
+  replyTo?: { id: string; text: string; sender: { id: string; name: string } } | null;
 }
 
-interface Conversation {
-  id: string;
-  kind: ChatTab; // 'groups' → trip group chat · 'inquiries' → 1-on-1 join inquiry
-  title: string; // trip name (group) or person name (inquiry)
-  headerSubtitle: string; // shown in the room header
-  image: string; // cover (group) or avatar (inquiry)
-  lastMessage: string;
-  time: string;
-  unread: number;
-  messages: Message[];
+interface GroupChat {
+  kind: 'groups';
+  id: string; // tripId
+  title: string;
+  image: string | null;
+  startDate: string;
+  endDate: string;
+  spotsFilled: number;
+  maxGuests: number;
+  lastMessage: ChatMessage | null;
 }
 
-/* ── Mock data ──────────────────────────────────────────────────────────────── */
-const img = (id: string) => `https://images.unsplash.com/photo-${id}?w=400&h=400&fit=crop&auto=format`;
+interface InquiryChat {
+  kind: 'inquiries';
+  id: string; // requestId
+  title: string; // the other person's name
+  image: string | null;
+  status: 'PENDING' | 'APPROVED';
+  destination: string;
+  lastMessage: ChatMessage | null;
+}
 
-const COVER = {
-  spiti: img('1626621341517-bbf3d9990a23'),
-  goa: img('1512343879784-a960bf40e7f2'),
-  manali: img('1593181629936-11c609b8db9b'),
-};
-const FACE = {
-  rohan: img('1507003211169-0a1dd7228f2d'),
-  ananya: img('1494790108377-be9c29b29330'),
-  kabir: img('1506794778202-cad84cf45f1d'),
-  priya: img('1534528741775-53994a69daeb'),
-};
+type Conversation = GroupChat | InquiryChat;
 
-const CONVERSATIONS: Conversation[] = [
-  // ── Active trip groups ──────────────────────────────────────────────────────
-  {
-    id: 'g1',
-    kind: 'groups',
-    title: 'Spiti Valley',
-    headerSubtitle: '4/6 travelers · 12–19 Jul',
-    image: COVER.spiti,
-    lastMessage: 'Booked the tempo traveller, sharing details soon!',
-    time: '2:14 PM',
-    unread: 2,
-    messages: [
-      { id: 'm1', fromMe: false, authorName: 'Rohan', authorAvatar: FACE.rohan, text: 'Hey everyone! Excited for Spiti 🏔️', time: '1:40 PM' },
-      { id: 'm2', fromMe: true, text: "Same here! What's the plan for day 1?", time: '1:42 PM' },
-      { id: 'm3', fromMe: false, authorName: 'Rohan', authorAvatar: FACE.rohan, text: "We'll acclimatize at Kaza, then Key Monastery.", time: '1:45 PM' },
-      { id: 'm4', fromMe: true, text: "Perfect. I'll carry a power bank and meds.", time: '1:48 PM' },
-      { id: 'm5', fromMe: false, authorName: 'Rohan', authorAvatar: FACE.rohan, text: 'Booked the tempo traveller, sharing details soon!', time: '2:14 PM' },
-    ],
-  },
-  {
-    id: 'g2',
-    kind: 'groups',
-    title: 'Goa Coastline',
-    headerSubtitle: '3/6 travelers · 3–7 Aug',
-    image: COVER.goa,
-    lastMessage: 'Anyone up for a sunrise at Anjuna?',
-    time: '11:02 AM',
-    unread: 0,
-    messages: [
-      { id: 'm1', fromMe: false, authorName: 'Ananya', authorAvatar: FACE.ananya, text: 'Anyone up for a sunrise at Anjuna?', time: '11:02 AM' },
-      { id: 'm2', fromMe: true, text: 'Count me in 🌅', time: '11:05 AM' },
-    ],
-  },
-  {
-    id: 'g3',
-    kind: 'groups',
-    title: 'Manali & Kasol',
-    headerSubtitle: '2/6 travelers · 20–26 Aug',
-    image: COVER.manali,
-    lastMessage: 'Carrying a tripod for the boulder shots.',
-    time: 'Yesterday',
-    unread: 0,
-    messages: [
-      { id: 'm1', fromMe: false, authorName: 'Rohan', authorAvatar: FACE.rohan, text: 'Carrying a tripod for the boulder shots.', time: 'Yesterday' },
-    ],
-  },
-
-  // ── 1-on-1 join inquiries ───────────────────────────────────────────────────
-  {
-    id: 'i1',
-    kind: 'inquiries',
-    title: 'Ananya Iyer',
-    headerSubtitle: 'Pending request · Spiti Valley',
-    image: FACE.ananya,
-    lastMessage: 'Hi! Is there still a spot open?',
-    time: '3:20 PM',
-    unread: 1,
-    messages: [
-      { id: 'm1', fromMe: false, authorName: 'Ananya', authorAvatar: FACE.ananya, text: 'Hi! Is there still a spot open for Spiti?', time: '3:18 PM' },
-      { id: 'm2', fromMe: false, authorName: 'Ananya', authorAvatar: FACE.ananya, text: 'Hi! Is there still a spot open?', time: '3:20 PM' },
-    ],
-  },
-  {
-    id: 'i2',
-    kind: 'inquiries',
-    title: 'Kabir Singh',
-    headerSubtitle: 'Pending request · Rishikesh Rapids',
-    image: FACE.kabir,
-    lastMessage: "I've done the Rishikesh stretch before 🙌",
-    time: '1:05 PM',
-    unread: 0,
-    messages: [
-      { id: 'm1', fromMe: false, authorName: 'Kabir', authorAvatar: FACE.kabir, text: "I've done the Rishikesh stretch before 🙌", time: '1:05 PM' },
-      { id: 'm2', fromMe: true, text: 'Nice! How many trips so far?', time: '1:09 PM' },
-    ],
-  },
-  {
-    id: 'i3',
-    kind: 'inquiries',
-    title: 'Priya Nair',
-    headerSubtitle: 'Waitlisted · Udaipur Heritage',
-    image: FACE.priya,
-    lastMessage: 'No worries, keep me posted!',
-    time: 'Mon',
-    unread: 0,
-    messages: [
-      { id: 'm1', fromMe: true, text: "Trip's full for now, but I'll waitlist you.", time: 'Mon' },
-      { id: 'm2', fromMe: false, authorName: 'Priya', authorAvatar: FACE.priya, text: 'No worries, keep me posted!', time: 'Mon' },
-    ],
-  },
-];
+interface ChatPush {
+  kind: ChatTab;
+  conversationId: string;
+  message: ChatMessage;
+}
 
 const TABS: { id: ChatTab; label: string }[] = [
   { id: 'groups', label: 'Groups' },
   { id: 'inquiries', label: 'Inquiries' },
 ];
 
+/* ── Helpers ────────────────────────────────────────────────────────────────── */
+function subtitle(c: Conversation): string {
+  return c.kind === 'groups'
+    ? `${c.spotsFilled}/${c.maxGuests} travelers · ${formatDateRange(c.startDate, c.endDate)}`
+    : `${c.status === 'APPROVED' ? 'Approved' : 'Pending'} request · ${c.destination}`;
+}
+
+// Today → "2:14 PM", otherwise → "12 Jul".
+function fmtTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+// Put the conversation's new last message in place and move it to the top.
+function bumpConversation<T extends Conversation>(list: T[], id: string, message: ChatMessage): T[] {
+  const conv = list.find((c) => c.id === id);
+  if (!conv) return list;
+  return [{ ...conv, lastMessage: message }, ...list.filter((c) => c.id !== id)];
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    CHATS  (dual-tab · fixed app-like scroll layout · mobile full-screen takeover)
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function Chats() {
+  const { user, token } = useAuth();
+
   // Tab + active chat are synced to the URL (?tab=groups|inquiries & chatId=…).
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const tab: ChatTab = searchParams.get('tab') === 'inquiries' ? 'inquiries' : 'groups';
   const activeId = searchParams.get('chatId');
 
-  const [draft, setDraft] = useState('');
-  const [convos, setConvos] = useState<Conversation[]>(CONVERSATIONS);
+  const [view, setView] = useState<ViewState>('loading');
+  const [groups, setGroups] = useState<GroupChat[]>([]);
+  const [inquiries, setInquiries] = useState<InquiryChat[]>([]);
 
-  const list = convos.filter((c) => c.kind === tab);
-  const active = convos.find((c) => c.id === activeId) ?? null;
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const list: Conversation[] = tab === 'groups' ? groups : inquiries;
+  const active = list.find((c) => c.id === activeId) ?? null;
+  const chatKey = active ? `${active.kind}:${active.id}` : null;
+
+  // Messages are stored with the chat they belong to, so switching chats never
+  // shows the previous chat's messages; "loading" = we don't have this chat yet.
+  const [thread, setThread] = useState<{ key: string | null; messages: ChatMessage[] }>({ key: null, messages: [] });
+  const messages = thread.key === chatKey ? thread.messages : [];
+  const messagesLoading = chatKey !== null && thread.key !== chatKey;
+  const appendMessage = (key: string, message: ChatMessage) =>
+    setThread((t) =>
+      t.key !== key || t.messages.some((m) => m.id === message.id) ? t : { ...t, messages: [...t.messages, message] },
+    );
+
+  // The socket listener is set up once, so it reads the latest lists through a ref.
+  const listsRef = useRef({ groups, inquiries });
+  useEffect(() => {
+    listsRef.current = { groups, inquiries };
+  });
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const fetchChats = async () => {
+    try {
+      const { data } = await api.get<{ groups: GroupChat[]; inquiries: InquiryChat[] }>('/chats');
+      setGroups(data.groups);
+      setInquiries(data.inquiries);
+      setView('ready');
+    } catch (error) {
+      console.error('[Chats] fetch failed', error);
+      setView('error');
+    }
+  };
+
+  useEffect(() => {
+    void fetchChats();
+  }, []);
+
+  // Live updates: the server pushes every new message in any of my chats.
+  useEffect(() => {
+    if (!token) return;
+    const socket = io(import.meta.env.VITE_API_URL, { auth: { token } });
+
+    socket.on('chat:message', ({ kind, conversationId, message }: ChatPush) => {
+      appendMessage(`${kind}:${conversationId}`, message);
+      const known = listsRef.current[kind].some((c) => c.id === conversationId);
+      if (!known) {
+        void fetchChats(); // a chat we haven't listed yet (e.g. a new inquiry)
+        return;
+      }
+      if (kind === 'groups') setGroups((prev) => bumpConversation(prev, conversationId, message));
+      else setInquiries((prev) => bumpConversation(prev, conversationId, message));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [token]);
+
+  // Load the open chat's history.
+  useEffect(() => {
+    if (!chatKey) return;
+    let cancelled = false;
+    api
+      .get<ChatMessage[]>(`/chats/${chatKey.replace(':', '/')}/messages`)
+      .then(({ data }) => !cancelled && setThread({ key: chatKey, messages: data }))
+      .catch((error) => {
+        console.error('[Chats] messages failed', error);
+        if (!cancelled) setThread({ key: chatKey, messages: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [chatKey])
+
+  // Keep the newest message in view.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' });
+  }, [thread]);
 
   // Lock background scroll while a chat is open (mobile overlay + desktop pane).
   useEffect(() => {
@@ -165,171 +187,358 @@ export default function Chats() {
     };
   }, [active]);
 
-  const switchTab = (t: ChatTab) => setSearchParams({ tab: t }); // also drops chatId → back to list
-  const openChat = (id: string) => setSearchParams({ tab, chatId: id }); // push
+  const switchTab = (t: ChatTab) => {
+    setSendError(null);
+    setReplyingTo(null);
+    setSearchParams({ tab: t }); // also drops chatId → back to list
+  };
+  const openChat = (id: string) => {
+    setSendError(null);
+    setReplyingTo(null);
+    setSearchParams({ tab, chatId: id }); // push
+  };
 
   // Closing mirrors the hardware back button so we don't leave a re-openable entry.
   const closeChat = () => {
+    setReplyingTo(null);
     const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
     if (idx > 0) navigate(-1);
     else setSearchParams({ tab }, { replace: true });
   };
 
-  const send = () => {
-    if (!draft.trim() || !active) return;
-    const msg: Message = { id: `n${Date.now()}`, fromMe: true, text: draft.trim(), time: 'Now' };
-    setConvos((prev) =>
-      prev.map((c) =>
-        c.id === active.id ? { ...c, messages: [...c.messages, msg], lastMessage: msg.text, time: 'Now' } : c,
-      ),
-    );
-    setDraft('');
+  const send = async () => {
+    const text = draft.trim();
+    if (!text || !active || sending) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      const { data } = await api.post<ChatMessage>(`/chats/${active.kind}/${active.id}/messages`, {
+        text,
+        replyToId: replyingTo?.id,
+      });
+      appendMessage(`${active.kind}:${active.id}`, data); // de-duplicates if the socket push arrived first
+      if (active.kind === 'groups') setGroups((prev) => bumpConversation(prev, active.id, data));
+      else setInquiries((prev) => bumpConversation(prev, active.id, data));
+      setDraft('');
+      setReplyingTo(null);
+    } catch (error) {
+      setSendError(apiErrorMessage(error, 'Message not sent. Please try again.'));
+    } finally {
+      setSending(false);
+    }
   };
+
+  const startReply = (m: ChatMessage) => {
+    setReplyingTo(m);
+    inputRef.current?.focus();
+  };
+
+  // Tapping a quoted message scrolls to the original and flashes it.
+  const jumpTo = (id: string) => {
+    document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightId(id);
+    window.setTimeout(() => setHighlightId((h) => (h === id ? null : h)), 1500);
+  };
+
+  const nameFor = (sender: { id: string; name: string }) =>
+    sender.id === user?.id ? 'You' : sender.name.split(' ')[0];
 
   return (
     <div className="flex flex-col lg:h-[calc(100vh-140px)]">
       <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-1 lg:mb-4 shrink-0">Chats</h1>
 
-      <div className="lg:grid lg:grid-cols-[340px_1fr] lg:grid-rows-1 lg:gap-6 lg:flex-1 lg:min-h-0">
-        {/* ── Sidebar (tabs + list) ──────────────────────────────────────────── */}
-        <div className={cn('lg:flex lg:flex-col lg:min-h-0', active && 'hidden lg:flex')}>
-          {/* Dual-tab pill switch */}
-          <div className="flex bg-slate-100 rounded-full p-1 mb-3 shrink-0">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => switchTab(t.id)}
-                className={cn(
-                  'flex-1 rounded-full py-2 text-sm font-semibold transition-colors',
-                  tab === t.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500',
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+      {view === 'error' && <ErrorState onRetry={fetchChats} />}
 
-          {/* Conversation list (scrolls within the pane on desktop) */}
-          <div className="space-y-2 lg:flex-1 lg:overflow-y-auto lg:min-h-0 lg:pr-1">
-            {list.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-16 text-slate-400">
-                <MessageCircle size={28} className="mb-2" />
-                <p className="text-sm">{tab === 'groups' ? 'No active groups yet.' : 'No inquiries right now.'}</p>
-              </div>
-            ) : (
-              list.map((c) => (
+      {view !== 'error' && (
+        <div className="lg:grid lg:grid-cols-[340px_1fr] lg:grid-rows-1 lg:gap-6 lg:flex-1 lg:min-h-0">
+          {/* ── Sidebar (tabs + list) ──────────────────────────────────────────── */}
+          <div className={cn('lg:flex lg:flex-col lg:min-h-0', active && 'hidden lg:flex')}>
+            {/* Dual-tab pill switch */}
+            <div className="flex bg-slate-100 rounded-full p-1 mb-3 shrink-0">
+              {TABS.map((t) => (
                 <button
-                  key={c.id}
+                  key={t.id}
                   type="button"
-                  onClick={() => openChat(c.id)}
+                  onClick={() => switchTab(t.id)}
                   className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-2xl border transition-colors text-left',
-                    activeId === c.id ? 'bg-blue-50 border-blue-600/30' : 'bg-white border-slate-200 hover:bg-slate-50',
+                    'flex-1 rounded-full py-2 text-sm font-semibold transition-colors',
+                    tab === t.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500',
                   )}
                 >
-                  <ConvThumb conv={c} size={56} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-900 truncate text-[15px] font-bold">{c.title}</span>
-                      <span className="text-slate-400 shrink-0 text-xs">{c.time}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-500 truncate text-[13px]">{c.lastMessage}</span>
-                      {c.unread > 0 && (
-                        <span className="bg-blue-600 text-white rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center shrink-0 text-[11px] font-bold">
-                          {c.unread}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  {t.label}
                 </button>
-              ))
+              ))}
+            </div>
+
+            {/* Conversation list (scrolls within the pane on desktop) */}
+            <div className="space-y-2 lg:flex-1 lg:overflow-y-auto lg:min-h-0 lg:pr-1">
+              {view === 'loading' ? (
+                Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[82px]" />)
+              ) : list.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-16 px-6 text-slate-400">
+                  <MessageCircle size={28} className="mb-2" />
+                  <p className="text-sm">
+                    {tab === 'groups'
+                      ? 'No trip groups yet. When you host a trip or get approved for one, its group chat shows up here.'
+                      : 'No inquiries yet. Chats with hosts (or travellers asking to join your trips) show up here.'}
+                  </p>
+                </div>
+              ) : (
+                list.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => openChat(c.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 p-3 rounded-2xl border transition-colors text-left',
+                      activeId === c.id ? 'bg-blue-50 border-blue-600/30' : 'bg-white border-slate-200 hover:bg-slate-50',
+                    )}
+                  >
+                    <ConvThumb conv={c} size={56} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-900 truncate text-[15px] font-bold">{c.title}</span>
+                        {c.lastMessage && (
+                          <span className="text-slate-400 shrink-0 text-xs">{fmtTime(c.lastMessage.createdAt)}</span>
+                        )}
+                      </div>
+                      <span className="block text-slate-500 truncate text-[13px]">
+                        {c.lastMessage
+                          ? `${c.lastMessage.sender.id === user?.id ? 'You' : c.lastMessage.sender.name.split(' ')[0]}: ${c.lastMessage.text}`
+                          : 'No messages yet. Say hi 👋'}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* ── Chat window ────────────────────────────────────────────────────────
+              Mobile + open → full-screen overlay (fixed inset-0 z-50, covers bottom nav)
+              Desktop       → static pane inside the grid
+              ──────────────────────────────────────────────────────────────────── */}
+          <div
+            className={cn(
+              'flex-col bg-white lg:h-full lg:min-h-0 lg:rounded-3xl lg:border lg:border-slate-200 lg:overflow-hidden',
+              active ? 'flex fixed inset-0 z-50 lg:static lg:z-auto' : 'hidden lg:flex',
+            )}
+          >
+            {active ? (
+              <>
+                {/* Header: locked at the top */}
+                <div className="flex items-center gap-3 p-4 border-b border-slate-200 shrink-0">
+                  <button type="button" onClick={closeChat} className="lg:hidden text-slate-500" aria-label="Back">
+                    <ChevronLeft size={22} />
+                  </button>
+                  <ConvThumb conv={active} size={40} header />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-slate-900 text-[15px] font-bold truncate">{active.title}</p>
+                    <p className="text-slate-400 text-xs truncate">{subtitle(active)}</p>
+                  </div>
+                </div>
+
+                {/* Message list: the ONLY scrollable region */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3 bg-slate-50">
+                  {messagesLoading && <p className="text-center text-slate-400 text-sm">Loading messages…</p>}
+                  {!messagesLoading && messages.length === 0 && (
+                    <p className="text-center text-slate-400 text-sm py-10">No messages yet. Start the conversation!</p>
+                  )}
+                  {messages.map((m) => (
+                    <MessageRow
+                      key={m.id}
+                      message={m}
+                      fromMe={m.sender.id === user?.id}
+                      showName={active.kind === 'groups'}
+                      highlighted={highlightId === m.id}
+                      nameFor={nameFor}
+                      // The join pitch isn't a saved message, so it can't be replied to.
+                      onReply={m.id.startsWith('pitch-') ? undefined : () => startReply(m)}
+                      onJumpTo={jumpTo}
+                    />
+                  ))}
+                  <div ref={bottomRef} />
+                </div>
+
+                {/* Input: locked at the bottom */}
+                <div className="border-t border-slate-200 shrink-0">
+                  {sendError && <p className="text-red-500 text-xs px-4 pt-2">{sendError}</p>}
+                  {replyingTo && (
+                    <div className="mx-3 mt-3 flex items-center gap-3 rounded-xl bg-slate-100 border-l-4 border-blue-600 px-3 py-2">
+                      <Reply size={16} className="text-blue-600 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold text-blue-600">
+                          Replying to {replyingTo.sender.id === user?.id ? 'yourself' : replyingTo.sender.name.split(' ')[0]}
+                        </p>
+                        <p className="text-[13px] text-slate-500 truncate">{replyingTo.text}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setReplyingTo(null)}
+                        aria-label="Cancel reply"
+                        className="text-slate-400 hover:text-slate-600 shrink-0"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  )}
+                  <div className="p-3 flex items-center gap-2">
+                    <input
+                      ref={inputRef}
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void send();
+                        if (e.key === 'Escape') setReplyingTo(null);
+                      }}
+                      maxLength={1000}
+                      placeholder={tab === 'groups' ? 'Message the group…' : 'Write a reply…'}
+                      className="flex-1 bg-slate-100 rounded-full px-5 py-3 outline-none text-slate-900 placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void send()}
+                      disabled={sending || !draft.trim()}
+                      aria-label="Send"
+                      className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white flex items-center justify-center transition-colors shrink-0"
+                    >
+                      <Send size={18} />
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 hidden lg:flex items-center justify-center text-slate-400 text-[15px]">
+                Select a conversation to start chatting
+              </div>
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* ── Chat window ────────────────────────────────────────────────────────
-            Mobile + open → full-screen overlay (fixed inset-0 z-50, covers bottom nav)
-            Desktop       → static pane inside the grid
-            ──────────────────────────────────────────────────────────────────── */}
-        <div
-          className={cn(
-            'flex-col bg-white lg:h-full lg:min-h-0 lg:rounded-3xl lg:border lg:border-slate-200 lg:overflow-hidden',
-            active ? 'flex fixed inset-0 z-50 lg:static lg:z-auto' : 'hidden lg:flex',
-          )}
+/* ── One message bubble: hover → reply button, swipe right → reply ─────────── */
+const SWIPE_TRIGGER = 56; // px of rightward swipe that starts a reply
+const SWIPE_MAX = 80;
+
+function MessageRow({
+  message: m,
+  fromMe,
+  showName,
+  highlighted,
+  nameFor,
+  onReply,
+  onJumpTo,
+}: {
+  message: ChatMessage;
+  fromMe: boolean;
+  showName: boolean;
+  highlighted: boolean;
+  nameFor: (sender: { id: string; name: string }) => string;
+  onReply?: () => void;
+  onJumpTo: (id: string) => void;
+}) {
+  // Swipe state: where the touch started, whether it turned into a vertical scroll, current offset.
+  const touch = useRef<{ x: number; y: number; scrolling: boolean } | null>(null);
+  const [dx, setDx] = useState(0);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (!onReply) return;
+    touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, scrolling: false };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const t = touch.current;
+    if (!t || t.scrolling) return;
+    const moveX = e.touches[0].clientX - t.x;
+    const moveY = e.touches[0].clientY - t.y;
+    // Mostly vertical → the user is scrolling the list, not swiping.
+    if (Math.abs(moveY) > Math.abs(moveX) && Math.abs(moveY) > 8) {
+      t.scrolling = true;
+      setDx(0);
+      return;
+    }
+    setDx(Math.max(0, Math.min(SWIPE_MAX, moveX)));
+  };
+  const onTouchEnd = () => {
+    if (dx >= SWIPE_TRIGGER) onReply?.();
+    touch.current = null;
+    setDx(0);
+  };
+
+  const replyButton = onReply && (
+    <button
+      type="button"
+      onClick={onReply}
+      aria-label="Reply"
+      title="Reply"
+      className="self-center shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+    >
+      <Reply size={16} />
+    </button>
+  );
+
+  return (
+    <div
+      id={`msg-${m.id}`}
+      className="relative"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
+    >
+      {/* Reply icon revealed behind the message while swiping */}
+      {dx > 0 && (
+        <span
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-blue-600"
+          style={{ opacity: Math.min(1, dx / SWIPE_TRIGGER) }}
         >
-          {active ? (
-            <>
-              {/* Header: locked at the top */}
-              <div className="flex items-center gap-3 p-4 border-b border-slate-200 shrink-0">
-                <button type="button" onClick={closeChat} className="lg:hidden text-slate-500" aria-label="Back">
-                  <ChevronLeft size={22} />
-                </button>
-                <ConvThumb conv={active} size={40} header />
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-900 text-[15px] font-bold truncate">{active.title}</p>
-                  <p className="text-slate-400 text-xs truncate">{active.headerSubtitle}</p>
-                </div>
-                <button type="button" className="text-slate-400 hover:text-blue-600 transition-colors">
-                  <Phone size={19} />
-                </button>
-                <button type="button" className="text-slate-400 hover:text-blue-600 transition-colors">
-                  <MoreVertical size={19} />
-                </button>
-              </div>
+          <Reply size={16} />
+        </span>
+      )}
 
-              {/* Message list: the ONLY scrollable region */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
-                {active.messages.map((m) => (
-                  <div key={m.id} className={cn('flex gap-2 items-end', m.fromMe ? 'justify-end' : 'justify-start')}>
-                    {!m.fromMe && <Avatar src={m.authorAvatar ?? null} name={m.authorName ?? '?'} size={28} />}
-                    <div className="max-w-[75%]">
-                      {!m.fromMe && m.authorName && (
-                        <p className="text-slate-400 mb-1 ml-1 text-[11px] font-semibold">{m.authorName}</p>
-                      )}
-                      <div
-                        className={cn(
-                          'rounded-2xl px-4 py-2.5 text-sm',
-                          m.fromMe
-                            ? 'bg-blue-600 text-white rounded-br-md'
-                            : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md',
-                        )}
-                      >
-                        {m.text}
-                      </div>
-                      <p className={cn('text-slate-400 mt-1 text-[11px]', m.fromMe ? 'text-right mr-1' : 'ml-1')}>
-                        {m.time}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Input: locked at the bottom */}
-              <div className="p-3 border-t border-slate-200 flex items-center gap-2 shrink-0">
-                <input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && send()}
-                  placeholder={tab === 'groups' ? 'Message the group…' : 'Write a reply…'}
-                  className="flex-1 bg-slate-100 rounded-full px-5 py-3 outline-none text-slate-900 placeholder:text-slate-400"
-                />
-                <button
-                  type="button"
-                  onClick={send}
-                  className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shrink-0"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 hidden lg:flex items-center justify-center text-slate-400 text-[15px]">
-              Select a conversation to start chatting
-            </div>
+      <div
+        className={cn('group flex gap-2 items-end', fromMe ? 'justify-end' : 'justify-start', dx === 0 && 'transition-transform')}
+        style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
+      >
+        {fromMe && replyButton}
+        {!fromMe && <Avatar src={m.sender.avatar} name={m.sender.name} size={28} />}
+        <div className="max-w-[75%] min-w-0">
+          {!fromMe && showName && (
+            <p className="text-slate-400 mb-1 ml-1 text-[11px] font-semibold">{m.sender.name.split(' ')[0]}</p>
           )}
+          <div
+            className={cn(
+              'rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words transition-shadow',
+              fromMe
+                ? 'bg-blue-600 text-white rounded-br-md'
+                : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md',
+              highlighted && 'ring-2 ring-amber-400',
+            )}
+          >
+            {m.replyTo && (
+              <button
+                type="button"
+                onClick={() => onJumpTo(m.replyTo!.id)}
+                className={cn(
+                  'block w-full text-left rounded-lg border-l-4 px-2.5 py-1.5 mb-1.5 text-[12px]',
+                  fromMe ? 'bg-white/15 border-white/70' : 'bg-slate-100 border-blue-600',
+                )}
+              >
+                <span className={cn('block font-semibold', fromMe ? 'text-white' : 'text-blue-600')}>
+                  {nameFor(m.replyTo.sender)}
+                </span>
+                <span className={cn('line-clamp-2', fromMe ? 'text-white/80' : 'text-slate-500')}>{m.replyTo.text}</span>
+              </button>
+            )}
+            {m.text}
+          </div>
+          <p className={cn('text-slate-400 mt-1 text-[11px]', fromMe ? 'text-right mr-1' : 'ml-1')}>
+            {fmtTime(m.createdAt)}
+          </p>
         </div>
+        {!fromMe && replyButton}
       </div>
     </div>
   );
@@ -340,12 +549,14 @@ function ConvThumb({ conv, size, header }: { conv: Conversation; size: number; h
   if (conv.kind === 'inquiries') {
     return <Avatar src={conv.image} name={conv.title} size={size} />;
   }
+  const cover =
+    conv.image || `https://loremflickr.com/200/200/${encodeURIComponent(conv.title.split(',')[0]?.trim() ?? 'travel')}/travel`;
   return (
     <span
       className={cn('overflow-hidden bg-slate-100 shrink-0', header ? 'rounded-xl' : 'rounded-2xl')}
       style={{ width: size, height: size }}
     >
-      <img src={conv.image} alt={conv.title} className="w-full h-full object-cover" loading="lazy" />
+      <img src={cover} alt={conv.title} className="w-full h-full object-cover" loading="lazy" />
     </span>
   );
 }

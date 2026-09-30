@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Inbox, MapPin } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Inbox, MapPin, MessageCircle } from 'lucide-react';
 import api, { apiErrorMessage } from '../services/api';
 import { Avatar, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
 
@@ -51,6 +51,7 @@ function fmtDate(iso: string): string {
 export default function Requests() {
   // Tab is synced to the URL (?tab=received | ?tab=sent).
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const tab: Tab = searchParams.get('tab') === 'sent' ? 'sent' : 'received';
   const setTab = (t: Tab) => setSearchParams({ tab: t });
 
@@ -161,6 +162,15 @@ export default function Requests() {
                 <div className="flex gap-2 shrink-0">
                   <button
                     type="button"
+                    onClick={() => navigate(`/chats?tab=inquiries&chatId=${r.id}`)}
+                    aria-label={`Message ${r.user.name}`}
+                    title="Message"
+                    className="w-9 h-9 flex items-center justify-center border border-slate-200 text-slate-500 rounded-full hover:border-blue-600 hover:text-blue-600 transition-colors"
+                  >
+                    <MessageCircle size={15} />
+                  </button>
+                  <button
+                    type="button"
                     disabled={acting[r.id]}
                     onClick={() => handleAction(r.id, 'REJECTED')}
                     className="border border-slate-200 text-slate-500 rounded-full px-4 py-2 text-[13px] font-semibold hover:border-red-500 hover:text-red-500 disabled:opacity-50 transition-colors"
@@ -209,6 +219,15 @@ export default function Requests() {
                   <p className="text-slate-500 truncate text-[13px]">
                     {fmtDate(r.trip.startDate)} · Hosted by {r.trip.host.name.split(' ')[0]}
                   </p>
+                  {r.status !== 'REJECTED' && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/chats?tab=inquiries&chatId=${r.id}`)}
+                      className="mt-0.5 flex items-center gap-1 text-[13px] font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      <MessageCircle size={13} /> Message host
+                    </button>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
                   <span

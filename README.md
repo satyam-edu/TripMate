@@ -26,6 +26,7 @@ A travel companion finding app where hosts post trips and travelers request to j
 | ORM | Prisma 5 |
 | Database | PostgreSQL (Neon, pooled + direct connections) |
 | Auth | Google OAuth (access token) + app-issued JWT |
+| Real-time chat | Socket.IO |
 | Hosting | Vercel (frontend), Render (backend), Neon (database) |
 
 ---
@@ -37,9 +38,9 @@ TripMate/
 ├── backend/             # Express + Prisma API
 │   ├── prisma/          # schema, migrations, seed scripts
 │   └── src/
-│       ├── controllers/ # auth, user, trip, request
+│       ├── controllers/ # auth, user, trip, request, chat
 │       ├── middlewares/ # JWT verification
-│       ├── routes/      # /api/auth, /api/users, /api/trips, /api/requests
+│       ├── routes/      # /api/auth, /api/users, /api/trips, /api/requests, /api/chats
 │       └── server.ts    # app entry
 └── tripmate/            # Vite + React frontend
     └── src/
@@ -133,6 +134,9 @@ Base URL: `/api`
 | `GET` | `/requests/received` | ✅ | Requests for your hosted trips |
 | `GET` | `/requests/sent` | ✅ | Requests you've sent |
 | `PATCH` | `/requests/:id` | ✅ | Approve / reject a request |
+| `GET` | `/chats` | ✅ | Your group and inquiry chats (with latest message) |
+| `GET` | `/chats/:kind/:id/messages` | ✅ | Messages of one chat (`kind` = `groups` + tripId, or `inquiries` + requestId) |
+| `POST` | `/chats/:kind/:id/messages` | ✅ | Send a message (pushed live over Socket.IO) |
 
 Authenticated routes expect `Authorization: Bearer <jwt>`.
 

@@ -18,6 +18,7 @@ export interface Trip {
   tags: string[];
   coverImage: string | null;
   description: string | null;
+  womenOnly: boolean;
   host: TripHost;
   _count?: {
     requests: number;

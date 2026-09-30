@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2 } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2, Star } from 'lucide-react';
 import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage } from '../services/api';
 import type { Trip } from '../types';
@@ -16,6 +16,15 @@ const VIBE_OPTIONS = [
 
 type ProfileTab = 'hosted' | 'joined';
 type ViewState = 'loading' | 'error' | 'ready';
+
+interface ProfileReview {
+  id: string;
+  rating: number;
+  text: string | null;
+  createdAt: string;
+  trip: { id: string; destination: string };
+  reviewer: { id: string; name: string; avatar: string | null };
+}
 
 function normalizeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -88,16 +97,23 @@ export default function Profile() {
   const [hosted, setHosted] = useState<Trip[]>([]);
   const [joined, setJoined] = useState<Trip[]>([]);
   const [view, setView] = useState<ViewState>('loading');
+  const [reviews, setReviews] = useState<ProfileReview[]>([]);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
 
   const fetchTrips = async () => {
     setView('loading');
     try {
-      const [hostedRes, joinedRes] = await Promise.all([
+      const [hostedRes, joinedRes, meRes] = await Promise.all([
         api.get<Trip[]>('/trips/hosted'),
         api.get<Trip[]>('/trips/joined'),
+        user ? api.get<{ reviews: ProfileReview[]; avgRating: number | null }>(`/users/${user.id}`) : null,
       ]);
       setHosted(hostedRes.data);
       setJoined(joinedRes.data);
+      if (meRes) {
+        setReviews(meRes.data.reviews);
+        setAvgRating(meRes.data.avgRating);
+      }
       setView('ready');
     } catch (error) {
       console.error('[Profile] fetch failed', error);
@@ -107,6 +123,7 @@ export default function Profile() {
 
   useEffect(() => {
     void fetchTrips();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount, like the other pages' fetch-on-load
   }, []);
 
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
@@ -141,9 +158,7 @@ export default function Profile() {
           <img src={user?.coverImage || COVER} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="absolute -bottom-8 left-5">
-          <span className="block ring-4 ring-white rounded-full">
-            <Avatar src={user?.avatar ?? null} name={name} size={88} />
-          </span>
+          <Avatar src={user?.avatar ?? null} name={name} size={88} ring ringWidth={4} />
         </div>
       </div>
 
@@ -157,8 +172,16 @@ export default function Profile() {
                 <BadgeCheck size={20} />
               </span>
             </div>
-            <p className="text-slate-500 flex items-center gap-1 text-sm mt-1">
-              <MapPin size={14} className="text-slate-400" /> {user?.location ?? 'Traveler'}
+            <p className="text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
+              {avgRating !== null && (
+                <span className="flex items-center gap-1 font-semibold text-slate-700">
+                  <Star size={14} className="text-amber-400" fill="currentColor" />
+                  {avgRating} <span className="text-slate-400 font-normal">({reviews.length})</span>
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <MapPin size={14} className="text-slate-400" /> {user?.location ?? 'Traveler'}
+              </span>
             </p>
           </div>
 
@@ -205,6 +228,34 @@ export default function Profile() {
           ))}
         </div>
       </div>
+
+      {/* ── Reviews about you ───────────────────────────────────────────────── */}
+      {reviews.length > 0 && (
+        <div className="mt-8 px-1">
+          <h2 className="text-slate-900 font-bold text-lg mb-4">
+            Reviews about you <span className="ml-1.5 text-slate-400 font-semibold">{reviews.length}</span>
+          </h2>
+          <div className="space-y-3">
+            {reviews.map((r) => (
+              <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar src={r.reviewer.avatar} name={r.reviewer.name} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-slate-900 font-semibold text-sm truncate">{r.reviewer.name}</p>
+                    <p className="text-slate-400 text-xs truncate">{r.trip.destination}</p>
+                  </div>
+                  <div className="flex gap-0.5 shrink-0 text-amber-400">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star key={i} size={13} fill={i < r.rating ? 'currentColor' : 'none'} strokeWidth={1.75} />
+                    ))}
+                  </div>
+                </div>
+                {r.text && <p className="text-slate-600 text-sm mt-2 leading-relaxed">{r.text}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
       <div className="mt-8 px-1">
@@ -353,6 +404,7 @@ function EditProfileModal({
   const [location, setLocation] = useState(user?.location ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
   const [social, setSocial] = useState(user?.socialHandle ?? '');
+  const [gender, setGender] = useState(user?.gender ?? '');
   const [vibes, setVibes] = useState<string[]>(user?.tags ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -378,6 +430,7 @@ function EditProfileModal({
       location: location.trim(),
       socialHandle: social.trim(),
       tags: vibes,
+      gender,
     };
     try {
       const { data } = await api.patch('/users/me', payload);
@@ -386,6 +439,7 @@ function EditProfileModal({
         location: data.location ?? null,
         socialHandle: data.socialHandle ?? null,
         tags: data.tags ?? [],
+        gender: data.gender ?? null,
       });
       onClose();
     } catch (err) {
@@ -463,9 +517,10 @@ function EditProfileModal({
               onClick={() => avatarInput.current?.click()}
               disabled={photoBusy !== null}
               aria-label="Change profile photo"
-              className="group relative rounded-full ring-4 ring-white shrink-0"
+              className="group relative rounded-full shrink-0"
+              style={{ width: 72, height: 72 }}
             >
-              <Avatar src={user?.avatar ?? null} name={user?.name ?? 'Traveller'} size={72} />
+              <Avatar src={user?.avatar ?? null} name={user?.name ?? 'Traveller'} size={72} ring ringWidth={4} />
               <span className="absolute inset-0 rounded-full bg-slate-900/0 group-hover:bg-slate-900/40 transition-colors flex items-center justify-center">
                 <Camera size={18} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
               </span>
@@ -530,6 +585,20 @@ function EditProfileModal({
           placeholder="instagram.com/yourhandle"
           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 transition-colors"
         />
+
+        {/* Gender (used only to unlock hosting/joining women-only trips) */}
+        <label className="block text-sm font-semibold text-slate-700 mt-4 mb-1.5">
+          Gender <span className="font-normal text-slate-400">(only used for women-only trips)</span>
+        </label>
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-600 transition-colors"
+        >
+          <option value="">Prefer not to say</option>
+          <option value="Woman">Woman</option>
+          <option value="Man">Man</option>
+        </select>
 
         {/* Vibes */}
         <label className="block text-sm font-semibold text-slate-700 mt-4 mb-2">Travel vibes</label>
@@ -608,9 +677,9 @@ function ProfileTripCard({
   return (
     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)]">
       <div className="relative">
-        <div className="aspect-[16/10] bg-slate-100">
-          <img src={coverUrl} alt={trip.destination} className="w-full h-full object-cover" loading="lazy" />
-        </div>
+        <Link to={`/trips/${trip.id}`} className="block aspect-[16/10] bg-slate-100" tabIndex={-1} aria-hidden="true">
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+        </Link>
         {tag && (
           <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', tagColor(tag))}>
             {tag}
@@ -625,7 +694,9 @@ function ProfileTripCard({
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
             <MapPin size={16} className="text-blue-600 shrink-0" />
-            <span className="text-[17px] font-bold truncate">{trip.destination}</span>
+            <Link to={`/trips/${trip.id}`} className="text-[17px] font-bold truncate hover:text-blue-600 transition-colors">
+              {trip.destination}
+            </Link>
           </div>
           <span
             className={cn(
@@ -685,8 +756,10 @@ function EditTripModal({
   const [budget, setBudget] = useState(String(trip.budget));
   const [maxGuests, setMaxGuests] = useState(String(trip.maxGuests));
   const [description, setDescription] = useState(trip.description ?? '');
+  const [womenOnly, setWomenOnly] = useState(trip.womenOnly);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   // Lock background scroll while open.
   useEffect(() => {
@@ -711,6 +784,7 @@ function EditTripModal({
         tags: trip.tags,
         coverImage: trip.coverImage ?? '',
         description,
+        womenOnly,
       });
       onSaved(data);
     } catch (err) {
@@ -772,6 +846,13 @@ function EditTripModal({
           maxLength={2000}
           className={`${input} resize-none`}
         />
+
+        {user?.gender === 'Woman' && (
+          <label className="flex items-center gap-2 mt-4 text-sm font-semibold text-slate-700 cursor-pointer">
+            <input type="checkbox" checked={womenOnly} onChange={(e) => setWomenOnly(e.target.checked)} className="accent-blue-600" />
+            Women-only trip
+          </label>
+        )}
 
         {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
 

@@ -53,6 +53,7 @@ export default function PostTab() {
   const [budget, setBudget] = useState(18500);
   const [vibes, setVibes] = useState<string[]>([]);
   const [tag, setTag] = useState<Category>('Mountains');
+  const [womenOnly, setWomenOnly] = useState(false);
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function PostTab() {
         tags: [tag, ...vibes.filter((v) => v !== tag)],
         coverImage: '', // backend auto-generates a cover from the destination
         description: '',
+        womenOnly,
       });
       setPublished(true);
     } catch (err: unknown) {
@@ -107,6 +109,7 @@ export default function PostTab() {
     setBudget(18500);
     setVibes([]);
     setTag('Mountains');
+    setWomenOnly(false);
     setErrorMessage(null);
     setPublished(false);
   };
@@ -299,6 +302,18 @@ export default function PostTab() {
                   </button>
                 ))}
               </div>
+
+              {user?.gender === 'Woman' && (
+                <label className="flex items-center gap-2 mt-6 text-sm font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={womenOnly}
+                    onChange={(e) => setWomenOnly(e.target.checked)}
+                    className="accent-blue-600"
+                  />
+                  Women-only trip
+                </label>
+              )}
             </div>
           )}
 

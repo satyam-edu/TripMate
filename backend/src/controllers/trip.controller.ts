@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { isValidTags } from '../utils';
+import { blockedUserIds } from './safety.controller';
 
 interface TripBody {
   destination?: string;
@@ -12,11 +13,12 @@ interface TripBody {
   tags?: string[];
   coverImage?: string;
   description?: string;
+  womenOnly?: boolean;
 }
 
 // Validates a create/edit body. Returns the clean data, or an error message.
 function parseTripBody(body: TripBody) {
-  const { destination, country, startDate, endDate, budget, maxGuests, tags, coverImage, description } = body;
+  const { destination, country, startDate, endDate, budget, maxGuests, tags, coverImage, description, womenOnly } = body;
 
   if (!destination || !country || !startDate || !endDate || budget == null || maxGuests == null) {
     return { error: 'destination, country, startDate, endDate, budget, and maxGuests are required.' };
@@ -65,6 +67,7 @@ function parseTripBody(body: TripBody) {
       tags:        tags ?? [],
       coverImage:  finalCoverImage,
       description: description && description.trim() !== '' ? description.trim() : null,
+      womenOnly:   womenOnly === true,
     },
   };
 }
@@ -83,6 +86,14 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
     if (!parsed.data) {
       res.status(400).json({ error: parsed.error });
       return;
+    }
+    // Only a host who identifies as a woman can mark a trip women-only.
+    if (parsed.data.womenOnly) {
+      const host = await prisma.user.findUnique({ where: { id: hostId }, select: { gender: true } });
+      if (host?.gender !== 'Woman') {
+        res.status(400).json({ error: 'Only travellers with gender set to Woman can post women-only trips.' });
+        return;
+      }
     }
 
     const trip = await prisma.trip.create({ data: { hostId, ...parsed.data } });
@@ -119,6 +130,13 @@ export const updateTrip = async (req: Request, res: Response): Promise<void> => 
     if (!parsed.data) {
       res.status(400).json({ error: parsed.error });
       return;
+    }
+    if (parsed.data.womenOnly) {
+      const host = await prisma.user.findUnique({ where: { id: trip.hostId }, select: { gender: true } });
+      if (host?.gender !== 'Woman') {
+        res.status(400).json({ error: 'Only travellers with gender set to Woman can post women-only trips.' });
+        return;
+      }
     }
     // Host takes one spot; can't shrink below the people already approved.
     if (parsed.data.maxGuests < trip._count.requests + 1) {
@@ -166,11 +184,13 @@ export const deleteTrip = async (req: Request, res: Response): Promise<void> => 
 export const getAllTrips = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
+    const hidden = userId ? await blockedUserIds(userId) : new Set<string>();
 
     const trips = await prisma.trip.findMany({
       where: {
         startDate: { gte: new Date() },
         ...(userId ? { hostId: { not: userId } } : {}),
+        ...(hidden.size > 0 ? { hostId: { notIn: [...hidden] } } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -188,6 +208,39 @@ export const getAllTrips = async (req: Request, res: Response): Promise<void> =>
     res.status(200).json(trips);
   } catch (error) {
     console.error('[getAllTrips]', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
+// GET /api/trips/:id
+// One trip's detail page: host card, who's going, and the viewer's own request (if any).
+export const getTrip = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params['id'] as string;
+    const userId = req.userId as string;
+    const [trip, myRequest] = await Promise.all([
+      prisma.trip.findUnique({
+        where: { id },
+        include: {
+          host: { select: { id: true, name: true, avatar: true, bio: true, location: true, socialHandle: true } },
+          requests: {
+            where: { status: 'APPROVED' },
+            orderBy: { createdAt: 'asc' },
+            select: { user: { select: { id: true, name: true, avatar: true } } },
+          },
+        },
+      }),
+      prisma.request.findUnique({ where: { tripId_userId: { tripId: id, userId } }, select: { id: true, status: true } }),
+    ]);
+    if (!trip) {
+      res.status(404).json({ error: 'Trip not found.' });
+      return;
+    }
+
+    const { requests, ...rest } = trip;
+    res.status(200).json({ ...rest, members: requests.map((r) => r.user), myRequest });
+  } catch (error) {
+    console.error('[getTrip]', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 };

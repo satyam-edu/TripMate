@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { notify } from './notification.controller';
+import { isBlockedEitherWay } from './safety.controller';
 
 type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 const VALID_STATUSES: RequestStatus[] = ['APPROVED', 'REJECTED'];
@@ -34,9 +35,21 @@ export const createRequest = async (req: Request, res: Response): Promise<void> 
       res.status(400).json({ error: 'You cannot request to join your own trip.' });
       return;
     }
+    // Deliberately the same generic message either way — never reveals a block.
+    if (await isBlockedEitherWay(userId, trip.hostId)) {
+      res.status(400).json({ error: "You can't join this trip." });
+      return;
+    }
     if (trip.startDate <= new Date()) {
       res.status(400).json({ error: 'This trip has already started.' });
       return;
+    }
+    if (trip.womenOnly) {
+      const requester = await prisma.user.findUnique({ where: { id: userId }, select: { gender: true } });
+      if (requester?.gender !== 'Woman') {
+        res.status(400).json({ error: 'This trip is only open to women.' });
+        return;
+      }
     }
     if (isFull(trip.maxGuests, trip._count.requests)) {
       res.status(400).json({ error: 'This trip is already full.' });

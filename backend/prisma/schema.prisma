@@ -10,6 +10,15 @@ enum NotificationType {
   NEW_REQUEST
   REQUEST_APPROVED
   REQUEST_DECLINED
+  REVIEW_RECEIVED
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  FAKE_PROFILE
+  SAFETY_CONCERN
+  OTHER
 }
 
 generator client {
@@ -40,6 +49,12 @@ model User {
   messages  Message[] // Chat messages this user sent
   notifications Notification[] // Bell notifications for this user
   chatReads     ChatRead[] // When this user last read each chat (for unread counts)
+  reviewsGiven    Review[] @relation("ReviewsGiven") // Reviews this user wrote
+  reviewsReceived Review[] @relation("ReviewsReceived") // Reviews written about this user
+  blocksMade     Block[]  @relation("BlocksMade")     // Users this user has blocked
+  blocksReceived Block[]  @relation("BlocksReceived") // Users who have blocked this user
+  reportsMade    Report[] @relation("ReportsMade")    // Reports this user has filed
+  reportsReceived Report[] @relation("ReportsReceived") // Reports filed against this user
   createdAt DateTime @default(now())
 }
 
@@ -57,8 +72,10 @@ model Trip {
   tags        String[]
   coverImage  String?
   description String?
+  womenOnly   Boolean   @default(false)
   requests    Request[] // All the requests sent to this trip
   messages    Message[] // Group chat + inquiry messages for this trip
+  reviews     Review[] // Reviews left about the trip (host <-> travellers)
   createdAt   DateTime  @default(now())
 }
 
@@ -135,4 +152,47 @@ model Image {
   data      Bytes
   mimeType  String
   createdAt DateTime @default(now())
+}
+
+// 8. The Review Table (host <-> traveller ratings, once a trip has ended)
+model Review {
+  id         String   @id @default(uuid())
+  tripId     String
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  revieweeId String
+  reviewee   User     @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+  rating     Int      // 1-5
+  text       String?
+  createdAt  DateTime @default(now())
+
+  // One review per person, per trip, per direction.
+  @@unique([tripId, reviewerId, revieweeId])
+  @@index([revieweeId])
+}
+
+// 9. Block + Report (safety)
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blocker   User     @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reporterId String
+  reporter   User         @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedId String
+  reported   User         @relation("ReportsReceived", fields: [reportedId], references: [id], onDelete: Cascade)
+  reason     ReportReason
+  details    String?
+  createdAt  DateTime     @default(now())
+
+  @@index([reportedId])
 }

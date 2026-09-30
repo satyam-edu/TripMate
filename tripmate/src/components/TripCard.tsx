@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import type { Trip } from '../types';
 import api, { apiErrorMessage } from '../services/api';
 import { MapPin, Calendar, Wallet, Users } from 'lucide-react';
 import { Avatar, cn, tagColor, formatDateRange, formatBudget } from './ui-bits';
+import { useAuth } from '../context/AuthContext';
 
 interface TripCardProps {
   trip: Trip;
@@ -11,7 +12,9 @@ interface TripCardProps {
 }
 
 export default function TripCard({ trip, currentUserId }: TripCardProps) {
+  const { user } = useAuth();
   const isHost = currentUserId === trip.hostId;
+  const canJoinWomenOnly = !trip.womenOnly || user?.gender === 'Woman';
   const coverUrl =
     trip.coverImage ||
     `https://loremflickr.com/800/600/${encodeURIComponent(trip.destination.split(',')[0]?.trim() ?? 'travel')}/travel`;
@@ -100,9 +103,9 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
     <div className="bg-white rounded-[24px] border border-[#E2E8F0] overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_10px_36px_rgba(15,23,42,0.10)] transition-shadow">
       {/* Cover */}
       <div className="relative">
-        <div className="aspect-[16/10] bg-[#F1F5F9]">
-          <img src={coverUrl} alt={trip.destination} className="w-full h-full object-cover" loading="lazy" />
-        </div>
+        <Link to={`/trips/${trip.id}`} className="block aspect-[16/10] bg-[#F1F5F9]" tabIndex={-1} aria-hidden="true">
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+        </Link>
         {tag && (
           <span
             className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 backdrop-blur-sm', tagColor(tag))}
@@ -118,15 +121,27 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
           <Users size={12} className="text-[#2563EB]" />
           {spotsFilled}/{spotsTotal}
         </span>
+        {trip.womenOnly && (
+          <span
+            className="absolute bottom-3 left-3 bg-pink-600/90 text-white rounded-full px-3 py-1 backdrop-blur-sm"
+            style={{ fontSize: 12, fontWeight: 600 }}
+          >
+            Women only
+          </span>
+        )}
       </div>
 
       {/* Body */}
       <div className="p-4">
         <div className="flex items-center gap-1.5 text-[#0F172A] mb-1">
           <MapPin size={16} className="text-[#2563EB] shrink-0" />
-          <span className="truncate" style={{ fontSize: 17, fontWeight: 700 }}>
+          <Link
+            to={`/trips/${trip.id}`}
+            className="truncate hover:text-[#2563EB] transition-colors"
+            style={{ fontSize: 17, fontWeight: 700 }}
+          >
             {trip.destination}
-          </span>
+          </Link>
         </div>
         <p className="text-[#94A3B8] mb-3" style={{ fontSize: 13 }}>
           {trip.country}
@@ -141,13 +156,15 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <Avatar src={trip.host.avatar} name={trip.host.name} size={28} />
-            <span className="text-[#64748B] truncate" style={{ fontSize: 13 }}>
-              Hosted by{' '}
-              <span className="text-[#0F172A]" style={{ fontWeight: 600 }}>
-                {hostFirstName}
+            <Link to={`/users/${trip.hostId}`} className="flex items-center gap-2 min-w-0 group">
+              <Avatar src={trip.host.avatar} name={trip.host.name} size={28} />
+              <span className="text-[#64748B] truncate" style={{ fontSize: 13 }}>
+                Hosted by{' '}
+                <span className="text-[#0F172A] group-hover:text-[#2563EB] transition-colors" style={{ fontWeight: 600 }}>
+                  {hostFirstName}
+                </span>
               </span>
-            </span>
+            </Link>
           </div>
 
           {/* CTA */}
@@ -176,6 +193,13 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
               style={{ fontSize: 14, fontWeight: 600 }}
             >
               Full
+            </span>
+          ) : !canJoinWomenOnly ? (
+            <span
+              className="shrink-0 rounded-full px-4 py-2 bg-[#F1F5F9] text-[#64748B] select-none"
+              style={{ fontSize: 14, fontWeight: 600 }}
+            >
+              Women only
             </span>
           ) : (
             <button

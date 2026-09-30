@@ -124,14 +124,21 @@ Base URL: `/api`
 | `GET` | `/health` | None | Health check |
 | `POST` | `/auth/google` | None | Exchange Google access token for app JWT |
 | `GET` | `/users/me` | ✅ | Current user profile |
+| `GET` | `/users/:id` | — | Public profile: bio, location, social link, hosted trips |
 | `PATCH` | `/users/me` | ✅ | Update profile |
 | `PUT` | `/users/me/photo/:kind` | ✅ | Upload profile photo or cover (`kind` = `avatar` / `cover`, raw image body) |
 | `DELETE` | `/users/me/photo/:kind` | ✅ | Remove profile photo or cover |
 | `GET` | `/images/:id` | — | Serve an uploaded photo |
+| `POST` | `/users/:id/block` | ✅ | Block a user (mutual: hides each other, blocks contact) |
+| `DELETE` | `/users/:id/block` | ✅ | Unblock |
+| `POST` | `/users/:id/report` | ✅ | Report a user (reason + optional details) |
 | `GET` | `/trips` | optional | List all trips (richer data if logged in) |
 | `POST` | `/trips` | ✅ | Create a trip |
 | `GET` | `/trips/hosted` | ✅ | Trips you've hosted |
 | `GET` | `/trips/joined` | ✅ | Trips you've joined |
+| `GET` | `/trips/:id` | ✅ | One trip: host, who's going, and your request status |
+| `GET` | `/trips/:id/reviews` | ✅ | Who you can still review on this trip |
+| `POST` | `/trips/:id/reviews` | ✅ | Leave a 1-5 star review (host ↔ traveller, once the trip has ended) |
 | `POST` | `/trips/:id/join` | ✅ | Request to join a trip |
 | `POST` | `/requests` | ✅ | Send a join request |
 | `GET` | `/requests/received` | ✅ | Requests for your hosted trips |

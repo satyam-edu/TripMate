@@ -6,7 +6,7 @@ import type { Trip } from '../types';
 import type { AuthUser } from '../context/AuthContext';
 import TripCard from '../components/TripCard';
 import { Avatar, Pill, SectionHeader, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
-import { Search, Bell, Compass, UserPlus, Check, X } from 'lucide-react';
+import { Search, Bell, Compass, UserPlus, Check, X, Star } from 'lucide-react';
 import { getSocket } from '../services/socket';
 
 /* ── Categories (client-side filter over trip.tags) ─────────────────────────── */
@@ -27,7 +27,7 @@ const TRENDING: { name: string; image: string }[] = [
 const HERO_IMG = 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?w=1400&h=500&fit=crop&auto=format';
 
 /* ── Notifications (real: GET /api/notifications + live socket push) ───────── */
-type NotificationType = 'NEW_REQUEST' | 'REQUEST_APPROVED' | 'REQUEST_DECLINED';
+type NotificationType = 'NEW_REQUEST' | 'REQUEST_APPROVED' | 'REQUEST_DECLINED' | 'REVIEW_RECEIVED';
 interface AppNotification {
   id: string;
   type: NotificationType;
@@ -40,6 +40,7 @@ const NOTI_META: Record<NotificationType, { Icon: typeof UserPlus; bg: string; f
   NEW_REQUEST: { Icon: UserPlus, bg: 'bg-blue-50', fg: 'text-blue-600' },
   REQUEST_APPROVED: { Icon: Check, bg: 'bg-emerald-50', fg: 'text-emerald-600' },
   REQUEST_DECLINED: { Icon: X, bg: 'bg-red-50', fg: 'text-red-500' },
+  REVIEW_RECEIVED: { Icon: Star, bg: 'bg-amber-50', fg: 'text-amber-600' },
 };
 
 // "just now", "5m ago", "3h ago", "2d ago", then a date.

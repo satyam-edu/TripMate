@@ -23,6 +23,17 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
         trips: {
           orderBy: { startDate: 'asc' },
         },
+        reviewsReceived: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            rating: true,
+            text: true,
+            createdAt: true,
+            trip: { select: { id: true, destination: true } },
+            reviewer: { select: { id: true, name: true, avatar: true } },
+          },
+        },
       },
     });
 
@@ -31,7 +42,19 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    res.status(200).json(user);
+    const { reviewsReceived, ...rest } = user;
+    const avgRating =
+      reviewsReceived.length > 0
+        ? Math.round((reviewsReceived.reduce((sum, r) => sum + r.rating, 0) / reviewsReceived.length) * 10) / 10
+        : null;
+
+    // Only tells the viewer whether *they* blocked this person, never the reverse — a
+    // blocked person is never told they were the one blocked.
+    const blockedByMe = req.userId
+      ? (await prisma.block.findUnique({ where: { blockerId_blockedId: { blockerId: req.userId, blockedId: id } } })) !== null
+      : false;
+
+    res.status(200).json({ ...rest, reviews: reviewsReceived, avgRating, blockedByMe });
   } catch (error) {
     console.error('[getUser]', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -59,11 +82,12 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
 export const updateMe = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.userId as string;
-    const { bio, location, socialHandle, tags } = req.body as {
+    const { bio, location, socialHandle, tags, gender } = req.body as {
       bio?: string;
       location?: string;
       socialHandle?: string;
       tags?: string[];
+      gender?: string;
     };
 
     if ((bio?.length ?? 0) > 500 || (location?.length ?? 0) > 100 || (socialHandle?.length ?? 0) > 200) {
@@ -74,6 +98,11 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: 'tags must be up to 12 short text values.' });
       return;
     }
+    const GENDERS = ['Woman', 'Man', 'Prefer not to say'];
+    if (gender !== undefined && gender !== '' && !GENDERS.includes(gender)) {
+      res.status(400).json({ error: `gender must be one of: ${GENDERS.join(', ')}.` });
+      return;
+    }
 
     const clean = (v?: string) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
 
@@ -82,11 +111,13 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
       location?: string | null;
       socialHandle?: string | null;
       tags?: string[];
+      gender?: string | null;
     } = {};
     if (bio !== undefined) data.bio = clean(bio);
     if (location !== undefined) data.location = clean(location);
     if (socialHandle !== undefined) data.socialHandle = clean(socialHandle);
     if (tags !== undefined) data.tags = tags;
+    if (gender !== undefined) data.gender = clean(gender);
 
     const user = await prisma.user.update({ where: { id: userId }, data });
     res.status(200).json(user);

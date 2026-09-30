@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { notify } from './notification.controller';
 import { isBlockedEitherWay } from './safety.controller';
+import { sendEmail } from '../services/email';
 
 type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 const VALID_STATUSES: RequestStatus[] = ['APPROVED', 'REJECTED'];
@@ -25,7 +26,10 @@ export const createRequest = async (req: Request, res: Response): Promise<void> 
 
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
-      include: { _count: { select: { requests: { where: { status: 'APPROVED' } } } } },
+      include: {
+        host: { select: { email: true } },
+        _count: { select: { requests: { where: { status: 'APPROVED' } } } },
+      },
     });
     if (!trip) {
       res.status(404).json({ error: 'Trip not found.' });
@@ -74,6 +78,12 @@ export const createRequest = async (req: Request, res: Response): Promise<void> 
       'NEW_REQUEST',
       `${joinRequest.user.name} requested to join ${joinRequest.trip.destination}`,
       '/requests',
+    );
+    await sendEmail(
+      trip.host.email,
+      `New request to join ${joinRequest.trip.destination}`,
+      `<p><strong>${joinRequest.user.name}</strong> asked to join your trip to <strong>${joinRequest.trip.destination}</strong>.</p>
+       <p><a href="${process.env.FRONTEND_URL ?? ''}/requests">View the request on TripMate</a></p>`,
     );
 
     res.status(201).json(joinRequest);
@@ -158,6 +168,7 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
     const existing = await prisma.request.findUnique({
       where: { id },
       include: {
+        user: { select: { email: true } },
         trip: {
           select: {
             hostId: true,
@@ -194,13 +205,23 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
 
     // Tell the traveller, only when the decision actually changed.
     if (existing.status !== status) {
+      const approved = status === 'APPROVED';
       await notify(
         existing.userId,
-        status === 'APPROVED' ? 'REQUEST_APPROVED' : 'REQUEST_DECLINED',
-        status === 'APPROVED'
+        approved ? 'REQUEST_APPROVED' : 'REQUEST_DECLINED',
+        approved
           ? `Your request for ${existing.trip.destination} was accepted!`
           : `Your request for ${existing.trip.destination} was declined.`,
         '/requests?tab=sent',
+      );
+      await sendEmail(
+        existing.user.email,
+        approved ? `You're going to ${existing.trip.destination}! 🎉` : `Update on your ${existing.trip.destination} request`,
+        approved
+          ? `<p>Good news — your request to join <strong>${existing.trip.destination}</strong> was accepted!</p>
+             <p><a href="${process.env.FRONTEND_URL ?? ''}/requests?tab=sent">See it on TripMate</a></p>`
+          : `<p>Your request to join <strong>${existing.trip.destination}</strong> was declined.</p>
+             <p><a href="${process.env.FRONTEND_URL ?? ''}/">Find another trip on TripMate</a></p>`,
       );
     }
 

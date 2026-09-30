@@ -716,6 +716,14 @@ function ProfileTripCard({
             <Wallet size={14} /> {formatBudget(trip.budget)}
           </span>
         </div>
+        {kind === 'hosted' && !!trip.pendingCount && (
+          <Link
+            to="/requests"
+            className="flex items-center gap-1.5 mt-3 rounded-full bg-amber-50 text-amber-600 px-3 py-1.5 text-[13px] font-semibold w-fit hover:bg-amber-100 transition-colors"
+          >
+            <Users size={13} /> {trip.pendingCount} {trip.pendingCount === 1 ? 'person' : 'people'} waiting
+          </Link>
+        )}
         {kind === 'hosted' && (
           <div className="flex gap-2 mt-4">
             <button

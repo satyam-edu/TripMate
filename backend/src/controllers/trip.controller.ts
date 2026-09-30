@@ -300,7 +300,17 @@ export const getHostedTrips = async (req: Request, res: Response): Promise<void>
         _count: { select: { requests: { where: { status: 'APPROVED' } } } },
       },
     });
-    res.status(200).json(trips);
+
+    // A single grouped count of PENDING requests across all of this host's trips
+    // (Prisma's `_count` can only carry one filter per relation, so this is a second query).
+    const pending = await prisma.request.groupBy({
+      by: ['tripId'],
+      where: { tripId: { in: trips.map((t) => t.id) }, status: 'PENDING' },
+      _count: true,
+    });
+    const pendingByTrip = new Map(pending.map((p) => [p.tripId, p._count]));
+
+    res.status(200).json(trips.map((t) => ({ ...t, pendingCount: pendingByTrip.get(t.id) ?? 0 })));
   } catch (error) {
     console.error('[getHostedTrips]', error);
     res.status(500).json({ error: 'Internal server error.' });

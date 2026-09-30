@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 export function cn(...classes: (string | false | null | undefined)[]): string {
@@ -50,21 +50,25 @@ export function Avatar({
   name,
   size = 40,
   ring,
+  ringWidth = 2,
 }: {
   src: string | null;
   name: string;
   size?: number;
   ring?: boolean;
+  ringWidth?: number; // px — only used when ring is true
 }) {
   // Falls back to initials if the photo link is broken (e.g. an expired Google photo URL).
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const cls = cn(
-    'inline-flex items-center justify-center rounded-full overflow-hidden bg-[#EFF6FF] text-[#2563EB] font-bold shrink-0',
-    ring && 'ring-2 ring-white',
-  );
+  const cls = cn('inline-flex items-center justify-center rounded-full overflow-hidden bg-[#EFF6FF] text-[#2563EB] font-bold shrink-0');
+  // A real border (not the box-shadow-based `ring` utility) so the circle stays exact
+  // at every zoom/DPI — box-shadow rings can show a faint edge gap on some displays.
+  const style: CSSProperties = ring
+    ? { width: size, height: size, boxSizing: 'border-box', border: `${ringWidth}px solid white` }
+    : { width: size, height: size };
   if (src && src !== failedSrc) {
     return (
-      <span className={cls} style={{ width: size, height: size }}>
+      <span className={cls} style={style}>
         <img
           src={src}
           alt={name}
@@ -77,7 +81,7 @@ export function Avatar({
     );
   }
   return (
-    <span className={cls} style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}>
+    <span className={cls} style={{ ...style, fontSize: Math.round(size * 0.36) }}>
       {getInitials(name)}
     </span>
   );

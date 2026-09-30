@@ -158,9 +158,7 @@ export default function Profile() {
           <img src={user?.coverImage || COVER} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="absolute -bottom-8 left-5">
-          <span className="block ring-4 ring-white rounded-full">
-            <Avatar src={user?.avatar ?? null} name={name} size={88} />
-          </span>
+          <Avatar src={user?.avatar ?? null} name={name} size={88} ring ringWidth={4} />
         </div>
       </div>
 
@@ -516,9 +514,10 @@ function EditProfileModal({
               onClick={() => avatarInput.current?.click()}
               disabled={photoBusy !== null}
               aria-label="Change profile photo"
-              className="group relative rounded-full ring-4 ring-white shrink-0"
+              className="group relative rounded-full shrink-0"
+              style={{ width: 72, height: 72 }}
             >
-              <Avatar src={user?.avatar ?? null} name={user?.name ?? 'Traveller'} size={72} />
+              <Avatar src={user?.avatar ?? null} name={user?.name ?? 'Traveller'} size={72} ring ringWidth={4} />
               <span className="absolute inset-0 rounded-full bg-slate-900/0 group-hover:bg-slate-900/40 transition-colors flex items-center justify-center">
                 <Camera size={18} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
               </span>

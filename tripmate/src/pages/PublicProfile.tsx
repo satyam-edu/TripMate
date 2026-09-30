@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { BadgeCheck, Calendar, Compass, Link2, MapPin, Star, Wallet } from 'lucide-react';
-import api from '../services/api';
+import { BadgeCheck, Calendar, Compass, Flag, Link2, MapPin, MoreVertical, ShieldOff, Star, UserX, Wallet, X } from 'lucide-react';
+import api, { apiErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor } from '../components/ui-bits';
 
@@ -29,6 +29,7 @@ interface PublicUser {
   createdAt: string;
   trips: PublicTrip[];
   avgRating: number | null;
+  blockedByMe: boolean;
   reviews: {
     id: string;
     rating: number;
@@ -55,6 +56,28 @@ export default function PublicProfile() {
   const [view, setView] = useState<ViewState>('loading');
   const [profile, setProfile] = useState<PublicUser | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [blocking, setBlocking] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const toggleBlock = async () => {
+    if (!profile) return;
+    const next = !profile.blockedByMe;
+    if (next && !window.confirm(`Block ${profile.name}? They won't be able to message you or see your trips, and you won't see theirs.`)) return;
+    setBlocking(true);
+    setActionError(null);
+    try {
+      if (next) await api.post(`/users/${profile.id}/block`);
+      else await api.delete(`/users/${profile.id}/block`);
+      setProfile({ ...profile, blockedByMe: next });
+      setMenuOpen(false);
+    } catch (err) {
+      setActionError(apiErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setBlocking(false);
+    }
+  };
 
   useEffect(() => {
     if (id === me?.id) return; // redirected below, to the editable version
@@ -105,19 +128,64 @@ export default function PublicProfile() {
           <img src={profile.coverImage || COVER} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="absolute -bottom-8 left-5">
-          <span className="block ring-4 ring-white rounded-full">
-            <Avatar src={profile.avatar} name={profile.name} size={88} />
-          </span>
+          <Avatar src={profile.avatar} name={profile.name} size={88} ring ringWidth={4} />
         </div>
       </div>
 
       <div className="mt-12 px-1">
-        <div className="flex items-center gap-1.5">
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight truncate">{profile.name}</h1>
-          <span title="Verified via Google" className="text-blue-600 shrink-0">
-            <BadgeCheck size={20} />
-          </span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight truncate">{profile.name}</h1>
+            <span title="Verified via Google" className="text-blue-600 shrink-0">
+              <BadgeCheck size={20} />
+            </span>
+          </div>
+
+          {/* Safety menu: report / block */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="More options"
+              className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-colors"
+            >
+              <MoreVertical size={17} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200 rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.16)] z-50 overflow-hidden py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setReportOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <Flag size={15} /> Report {profile.name.split(' ')[0]}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void toggleBlock()}
+                    disabled={blocking}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60 transition-colors"
+                  >
+                    {profile.blockedByMe ? <ShieldOff size={15} /> : <UserX size={15} />}
+                    {profile.blockedByMe ? `Unblock ${profile.name.split(' ')[0]}` : `Block ${profile.name.split(' ')[0]}`}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
+        {profile.blockedByMe && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-500 text-xs font-semibold px-3 py-1">
+            <ShieldOff size={12} /> You've blocked this person
+          </p>
+        )}
+        {actionError && <p className="text-red-500 text-sm mt-2">{actionError}</p>}
         <p className="text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
           {profile.avgRating !== null && (
             <span className="flex items-center gap-1 font-semibold text-slate-700">
@@ -184,6 +252,8 @@ export default function PublicProfile() {
           </div>
         </div>
       )}
+
+      {reportOpen && <ReportModal name={profile.name} userId={profile.id} onClose={() => setReportOpen(false)} />}
 
       {/* ── Hosted trips ────────────────────────────────────────────────────── */}
       <div className="mt-8 px-1">
@@ -258,6 +328,113 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
         </div>
       </div>
     </Link>
+  );
+}
+
+/* ── Report modal ──────────────────────────────────────────────────────────── */
+const REPORT_REASONS: { value: string; label: string }[] = [
+  { value: 'SPAM', label: 'Spam' },
+  { value: 'HARASSMENT', label: 'Harassment or abuse' },
+  { value: 'FAKE_PROFILE', label: 'Fake profile' },
+  { value: 'SAFETY_CONCERN', label: 'Safety concern' },
+  { value: 'OTHER', label: 'Something else' },
+];
+
+function ReportModal({ name, userId, onClose }: { name: string; userId: string; onClose: () => void }) {
+  const [reason, setReason] = useState('');
+  const [details, setDetails] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  const submit = async () => {
+    if (!reason) {
+      setError('Please choose a reason.');
+      return;
+    }
+    setSending(true);
+    setError(null);
+    try {
+      await api.post(`/users/${userId}/report`, { reason, details: details.trim() || undefined });
+      setSent(true);
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not send your report. Please try again.'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/50" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-lg font-bold text-slate-900">{sent ? 'Report sent' : `Report ${name}`}</h2>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {sent ? (
+          <p className="text-slate-600 text-sm mt-3">
+            Thanks — we've received your report and will look into it. You don't need to do anything else.
+          </p>
+        ) : (
+          <>
+            <p className="text-slate-500 text-sm mt-1 mb-4">This is sent privately; {name.split(' ')[0]} won't be notified.</p>
+
+            <div className="space-y-2">
+              {REPORT_REASONS.map((r) => (
+                <label
+                  key={r.value}
+                  className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-medium text-slate-700 cursor-pointer hover:border-blue-600 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="report-reason"
+                    value={r.value}
+                    checked={reason === r.value}
+                    onChange={() => setReason(r.value)}
+                    className="accent-blue-600"
+                  />
+                  {r.label}
+                </label>
+              ))}
+            </div>
+
+            <textarea
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              rows={3}
+              maxLength={1000}
+              placeholder="Anything else that would help us understand (optional)"
+              className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 resize-none"
+            />
+
+            {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+
+            <div className="flex justify-end gap-3 mt-5">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={sending}
+                className="px-5 py-2.5 rounded-full border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submit()}
+                disabled={sending}
+                className="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+              >
+                {sending ? 'Sending…' : 'Submit report'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

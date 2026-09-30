@@ -48,7 +48,13 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
         ? Math.round((reviewsReceived.reduce((sum, r) => sum + r.rating, 0) / reviewsReceived.length) * 10) / 10
         : null;
 
-    res.status(200).json({ ...rest, reviews: reviewsReceived, avgRating });
+    // Only tells the viewer whether *they* blocked this person, never the reverse — a
+    // blocked person is never told they were the one blocked.
+    const blockedByMe = req.userId
+      ? (await prisma.block.findUnique({ where: { blockerId_blockedId: { blockerId: req.userId, blockedId: id } } })) !== null
+      : false;
+
+    res.status(200).json({ ...rest, reviews: reviewsReceived, avgRating, blockedByMe });
   } catch (error) {
     console.error('[getUser]', error);
     res.status(500).json({ error: 'Internal server error.' });

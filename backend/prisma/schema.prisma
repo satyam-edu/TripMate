@@ -13,6 +13,14 @@ enum NotificationType {
   REVIEW_RECEIVED
 }
 
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  FAKE_PROFILE
+  SAFETY_CONCERN
+  OTHER
+}
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -43,6 +51,10 @@ model User {
   chatReads     ChatRead[] // When this user last read each chat (for unread counts)
   reviewsGiven    Review[] @relation("ReviewsGiven") // Reviews this user wrote
   reviewsReceived Review[] @relation("ReviewsReceived") // Reviews written about this user
+  blocksMade     Block[]  @relation("BlocksMade")     // Users this user has blocked
+  blocksReceived Block[]  @relation("BlocksReceived") // Users who have blocked this user
+  reportsMade    Report[] @relation("ReportsMade")    // Reports this user has filed
+  reportsReceived Report[] @relation("ReportsReceived") // Reports filed against this user
   createdAt DateTime @default(now())
 }
 
@@ -157,4 +169,29 @@ model Review {
   // One review per person, per trip, per direction.
   @@unique([tripId, reviewerId, revieweeId])
   @@index([revieweeId])
+}
+
+// 9. Block + Report (safety)
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blocker   User     @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reporterId String
+  reporter   User         @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedId String
+  reported   User         @relation("ReportsReceived", fields: [reportedId], references: [id], onDelete: Cascade)
+  reason     ReportReason
+  details    String?
+  createdAt  DateTime     @default(now())
+
+  @@index([reportedId])
 }

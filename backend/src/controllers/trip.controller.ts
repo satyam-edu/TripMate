@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { isValidTags } from '../utils';
+import { blockedUserIds } from './safety.controller';
 
 interface TripBody {
   destination?: string;
@@ -166,11 +167,13 @@ export const deleteTrip = async (req: Request, res: Response): Promise<void> => 
 export const getAllTrips = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
+    const hidden = userId ? await blockedUserIds(userId) : new Set<string>();
 
     const trips = await prisma.trip.findMany({
       where: {
         startDate: { gte: new Date() },
         ...(userId ? { hostId: { not: userId } } : {}),
+        ...(hidden.size > 0 ? { hostId: { notIn: [...hidden] } } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: {

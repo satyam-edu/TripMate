@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { isValidTags } from '../utils';
 import { blockedUserIds } from './safety.controller';
+
+const FEED_PAGE_SIZE = 12;
 
 interface TripBody {
   destination?: string;
@@ -179,20 +182,57 @@ export const deleteTrip = async (req: Request, res: Response): Promise<void> => 
 };
 
 // GET /api/trips
-// Fetches all upcoming trips, excluding the authenticated user's own trips.
+// Fetches upcoming trips page by page, excluding the authenticated user's own trips.
 // If logged in, each trip also carries `requests: [{ status }]`, the user's own request, if any.
+// Query params (all optional): q (destination/country/description text), category (a tag),
+// minBudget, maxBudget, startDate, endDate (only trips within this window), cursor (last trip id from the previous page).
 export const getAllTrips = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
     const hidden = userId ? await blockedUserIds(userId) : new Set<string>();
+    const { q, category, minBudget, maxBudget, startDate, endDate, cursor } = req.query as Record<string, string | undefined>;
+
+    const where: Prisma.TripWhereInput = {
+      startDate: { gte: new Date() },
+      ...(userId ? { hostId: { not: userId } } : {}),
+      ...(hidden.size > 0 ? { hostId: { notIn: [...hidden] } } : {}),
+    };
+
+    if (q && q.trim()) {
+      const text = q.trim().slice(0, 100);
+      where.OR = [
+        { destination: { contains: text, mode: 'insensitive' } },
+        { country: { contains: text, mode: 'insensitive' } },
+        { description: { contains: text, mode: 'insensitive' } },
+      ];
+    }
+    if (category) {
+      where.tags = { has: category.slice(0, 40) };
+    }
+    const min = minBudget !== undefined ? Number(minBudget) : NaN;
+    const max = maxBudget !== undefined ? Number(maxBudget) : NaN;
+    if (Number.isFinite(min) || Number.isFinite(max)) {
+      where.budget = {
+        ...(Number.isFinite(min) ? { gte: min } : {}),
+        ...(Number.isFinite(max) ? { lte: max } : {}),
+      };
+    }
+    if (startDate) {
+      const d = new Date(startDate);
+      if (!Number.isNaN(d.getTime()) && d > new Date()) {
+        where.startDate = { gte: d };
+      }
+    }
+    if (endDate) {
+      const d = new Date(endDate);
+      if (!Number.isNaN(d.getTime())) where.endDate = { lte: d };
+    }
 
     const trips = await prisma.trip.findMany({
-      where: {
-        startDate: { gte: new Date() },
-        ...(userId ? { hostId: { not: userId } } : {}),
-        ...(hidden.size > 0 ? { hostId: { notIn: [...hidden] } } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: FEED_PAGE_SIZE + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
         host: {
           select: { id: true, name: true, avatar: true },
@@ -205,7 +245,9 @@ export const getAllTrips = async (req: Request, res: Response): Promise<void> =>
       },
     });
 
-    res.status(200).json(trips);
+    const hasMore = trips.length > FEED_PAGE_SIZE;
+    const page = trips.slice(0, FEED_PAGE_SIZE);
+    res.status(200).json({ trips: page, nextCursor: hasMore ? page[page.length - 1]!.id : null });
   } catch (error) {
     console.error('[getAllTrips]', error);
     res.status(500).json({ error: 'Internal server error.' });

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 export function cn(...classes: (string | false | null | undefined)[]): string {
@@ -56,14 +56,23 @@ export function Avatar({
   size?: number;
   ring?: boolean;
 }) {
+  // Falls back to initials if the photo link is broken (e.g. an expired Google photo URL).
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const cls = cn(
     'inline-flex items-center justify-center rounded-full overflow-hidden bg-[#EFF6FF] text-[#2563EB] font-bold shrink-0',
     ring && 'ring-2 ring-white',
   );
-  if (src) {
+  if (src && src !== failedSrc) {
     return (
       <span className={cls} style={{ width: size, height: size }}>
-        <img src={src} alt={name} className="w-full h-full object-cover" loading="lazy" />
+        <img
+          src={src}
+          alt={name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setFailedSrc(src)}
+        />
       </span>
     );
   }

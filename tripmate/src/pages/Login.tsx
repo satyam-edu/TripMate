@@ -51,11 +51,11 @@ export default function Login() {
       {/* ── Login modal ────────────────────────────────────────────────────────── */}
       <div className="relative z-20 w-[85%] sm:w-full max-w-md max-h-[85vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-5 sm:p-8">
         {/* Brand */}
-        <div className="flex items-center gap-2 mb-7">
+        <div className="flex items-center gap-2.5 mb-7">
+          <img src="/logo.png" alt="" className="w-9 h-9 rounded-full" />
           <span className="text-[#2563EB]" style={{ fontSize: 22, fontWeight: 800 }}>
             TripMate
           </span>
-          <span style={{ fontSize: 18 }}>✈️</span>
         </div>
 
         {/* Heading */}

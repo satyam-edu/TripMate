@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Home, PlusCircle, Inbox, MessageCircle, User, LogOut } from 'lucide-react';
 import { Avatar, cn } from './ui-bits';
 import { useAuth } from '../context/AuthContext';
@@ -46,71 +46,124 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
   );
 }
 
-/* ── Desktop sidebar ────────────────────────────────────────────────────────── */
+/* ── Desktop sidebar: dark icon rail with a sliding "notch" on the active item ─ */
+const PAGE_BG = '#F8FAFC'; // must match the page background so the notch reads as a cut-out
+const RAIL_ITEMS = items.filter((it) => it.to !== '/profile'); // Profile is the avatar at the bottom
+const SLOT = 60; // height of one rail item (px)
+const NOTCH_W = 52;
+const NOTCH_H = 116;
+
 function Sidebar({ user, onLogout }: { user: AuthUser | null; onLogout: () => void }) {
   const name = user?.name ?? 'Traveller';
   const { unreadTotal } = useChatAlerts();
+  const { pathname } = useLocation();
+  const activeIndex = RAIL_ITEMS.findIndex((it) => (it.end ? pathname === it.to : pathname.startsWith(it.to)));
+  const profileActive = pathname.startsWith('/profile');
+
   return (
-    <aside className="hidden lg:flex flex-col w-[240px] shrink-0 h-screen sticky top-0 border-r border-[#E2E8F0] bg-white px-4 py-6">
-      <div className="flex items-center gap-2 px-3 mb-8">
-        <span className="text-[#2563EB]" style={{ fontSize: 22, fontWeight: 800 }}>
-          TripMate
-        </span>
-        <span style={{ fontSize: 18 }}>✈️</span>
-      </div>
-
-      <nav className="flex flex-col gap-1">
-        {items.map((it) => {
-          const Icon = it.icon;
-          return (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              end={it.end}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors text-left',
-                  isActive ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#64748B] hover:bg-[#F8FAFC]',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon size={20} strokeWidth={isActive ? 2.4 : 2} />
-                  <span style={{ fontSize: 15, fontWeight: isActive ? 600 : 500 }}>{it.label}</span>
-                  {it.to === '/chats' && <UnreadBadge count={unreadTotal} className="ml-auto" />}
-                </>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      <div className="mt-auto flex items-center gap-2">
+    <aside className="hidden lg:block w-[104px] shrink-0 h-screen sticky top-0 py-4 pl-4">
+      <div className="relative h-full w-[72px] rounded-[28px] bg-[#2563EB] shadow-[0_8px_30px_rgba(37,99,235,0.25)] flex flex-col items-center py-5">
+        {/* Logo */}
         <NavLink
-          to="/profile"
-          className="flex-1 min-w-0 flex items-center gap-3 rounded-2xl p-2 hover:bg-[#F8FAFC] transition-colors"
+          to="/"
+          aria-label="TripMate home"
+          className="w-11 h-11 rounded-full shrink-0 ring-2 ring-white/80 overflow-hidden"
         >
-          <Avatar src={user?.avatar ?? null} name={name} size={40} />
-          <span className="text-left leading-tight min-w-0">
-            <span className="block text-[#0F172A] truncate" style={{ fontSize: 14, fontWeight: 600 }}>
-              {name}
-            </span>
-            <span className="block text-[#94A3B8]" style={{ fontSize: 12 }}>
-              Traveler
-            </span>
-          </span>
+          <img src="/logo.png" alt="" className="w-full h-full object-cover" />
         </NavLink>
-        <button
-          onClick={onLogout}
-          title="Sign out"
-          aria-label="Sign out"
-          className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#ef4444] transition-colors"
-        >
-          <LogOut size={18} />
-        </button>
+
+        {/* Main icons, vertically centred like the design */}
+        <nav className="relative w-full my-auto" style={{ height: RAIL_ITEMS.length * SLOT }}>
+          {/* The notch: a page-coloured wave on the rail's right edge that slides to the active item. */}
+          <svg
+            aria-hidden="true"
+            width={NOTCH_W}
+            height={NOTCH_H}
+            viewBox={`0 0 ${NOTCH_W} ${NOTCH_H}`}
+            className="absolute right-0 top-0 pointer-events-none transition-[transform,opacity] duration-300 ease-out"
+            style={{
+              transform: `translateY(${activeIndex * SLOT + SLOT / 2 - NOTCH_H / 2}px)`,
+              opacity: activeIndex < 0 ? 0 : 1,
+            }}
+          >
+            <path
+              d={`M${NOTCH_W} 0 C${NOTCH_W} 36 2 32 2 ${NOTCH_H / 2} C2 ${NOTCH_H - 32} ${NOTCH_W} ${NOTCH_H - 36} ${NOTCH_W} ${NOTCH_H} Z`}
+              fill={PAGE_BG}
+            />
+          </svg>
+
+          {RAIL_ITEMS.map((it) => {
+            const Icon = it.icon;
+            return (
+              <NavLink
+                key={it.to}
+                to={it.to}
+                end={it.end}
+                aria-label={it.to === '/chats' && unreadTotal > 0 ? `${it.label} (${unreadTotal} unread)` : it.label}
+                className={({ isActive }) =>
+                  cn(
+                    'group relative flex items-center justify-center w-full transition-colors duration-300',
+                    isActive ? 'text-[#2563EB]' : 'text-white/70 hover:text-white',
+                  )
+                }
+                style={{ height: SLOT }}
+              >
+                {({ isActive }) => (
+                  <>
+                    <span className="relative">
+                      <Icon size={20} strokeWidth={isActive ? 2.6 : 2} />
+                      {it.to === '/chats' && (
+                        <UnreadBadge
+                          count={unreadTotal}
+                          className="absolute -top-2.5 -right-3 ring-2 ring-[#2563EB]"
+                        />
+                      )}
+                    </span>
+                    <RailTooltip label={it.label} />
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        {/* Profile + sign out */}
+        <div className="flex flex-col items-center gap-4 shrink-0">
+          <NavLink
+            to="/profile"
+            aria-label="Profile"
+            className={cn(
+              // flex (not inline) so the ring hugs the avatar exactly, with a small dark gap
+              'group relative flex rounded-full ring-2 ring-offset-2 ring-offset-[#2563EB] transition-shadow',
+              profileActive ? 'ring-white' : 'ring-transparent hover:ring-white/50',
+            )}
+          >
+            <Avatar src={user?.avatar ?? null} name={name} size={40} />
+            <RailTooltip label="Profile" />
+          </NavLink>
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="Sign out"
+            className="group relative w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-colors"
+          >
+            <LogOut size={18} />
+            <RailTooltip label="Sign out" />
+          </button>
+        </div>
       </div>
     </aside>
+  );
+}
+
+/* Name label that appears to the right of a rail icon on hover / keyboard focus. */
+function RailTooltip({ label }: { label: string }) {
+  return (
+    <span
+      className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#0F172A] px-2.5 py-1 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 z-50"
+    >
+      {label}
+    </span>
   );
 }
 

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { isValidTags } from '../utils';
+import { isValidTags, isPrismaError } from '../utils';
 import { blockedUserIds } from './safety.controller';
 
 const FEED_PAGE_SIZE = 12;
@@ -337,12 +337,3 @@ export const getJoinedTrips = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// ── Helper ────────────────────────────────────────────────────────────────────
-function isPrismaError(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: string }).code === code
-  );
-}

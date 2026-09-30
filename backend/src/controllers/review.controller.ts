@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { notify } from './notification.controller';
+import { isPrismaError } from '../utils';
 
 // Reviews run between every pair of trip members (host and travellers alike),
 // and only once the trip has ended.
@@ -170,6 +171,3 @@ export const deleteReview = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-function isPrismaError(error: unknown, code: string): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === code;
-}

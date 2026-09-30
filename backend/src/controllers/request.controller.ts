@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { notify } from './notification.controller';
 import { isBlockedEitherWay } from './safety.controller';
 import { sendEmail } from '../services/email';
+import { isPrismaError } from '../utils';
 
 type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 const VALID_STATUSES: RequestStatus[] = ['APPROVED', 'REJECTED'];
@@ -262,11 +263,3 @@ function isFull(maxGuests: number, approvedCount: number): boolean {
   return approvedCount + 1 >= maxGuests;
 }
 
-function isPrismaError(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: string }).code === code
-  );
-}

@@ -165,7 +165,7 @@ Base URL: `/api`
 | `POST` | `/trips` | ✅ | Create a trip |
 | `GET` | `/trips/hosted` | ✅ | Trips you've hosted |
 | `GET` | `/trips/joined` | ✅ | Trips you've joined |
-| `GET` | `/trips/:id` | ✅ | One trip: host, who's going, and your request status |
+| `GET` | `/trips/:id` | ✅ | One trip by slug (`/trips/goa-coastline`) or id: host, who's going, and your request status |
 | `GET` | `/trips/:id/reviews` | ✅ | Who you can still review on this trip |
 | `POST` | `/trips/:id/reviews` | ✅ | Leave a 1-5 star review (host ↔ traveller, once the trip has ended) |
 | `PATCH` | `/trips/:id` | ✅ | Edit a trip (host only) |

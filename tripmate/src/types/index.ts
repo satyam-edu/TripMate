@@ -8,6 +8,7 @@ export interface TripHost {
 
 export interface Trip {
   id: string;
+  slug: string | null; // readable URL part for /trips/<slug>
   hostId: string;
   destination: string;
   country: string;

@@ -66,6 +66,7 @@ model Trip {
   id          String    @id @default(uuid())
   hostId      String
   host        User      @relation("HostTrips", fields: [hostId], references: [id])
+  slug        String?   @unique // Readable URL part, e.g. "udaipur-royal-heritage"
   destination String
   country     String
   startDate   DateTime

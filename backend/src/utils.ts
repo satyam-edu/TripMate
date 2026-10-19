@@ -16,3 +16,18 @@ export function isPrismaError(error: unknown, code: string): boolean {
     (error as { code: string }).code === code
   );
 }
+
+// "Udaipur Royal Heritage, India" → "udaipur-royal-heritage-india". Empty when nothing usable is left.
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50)
+    .replace(/-+$/, '');
+}
+
+export const isUuid = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);

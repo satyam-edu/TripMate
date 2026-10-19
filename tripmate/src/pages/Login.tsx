@@ -6,12 +6,23 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { AuthUser } from '../context/AuthContext';
 
+// Remember who has signed in on this device, so we only say "welcome back" to returning users.
+const SEEN_KEY = 'tripmate_returning';
+const isReturning = () => {
+  try {
+    return localStorage.getItem(SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [returning] = useState(isReturning);
 
   // ── Google auth logic preserved ──────────────────────────────────────────────
   const handleGoogleLogin = useGoogleLogin({
@@ -23,6 +34,11 @@ export default function Login() {
           token: tokenResponse.access_token,
         });
         login(data.token, data.user);
+        try {
+          localStorage.setItem(SEEN_KEY, '1');
+        } catch {
+          /* storage blocked: fine, we just greet them as new next time */
+        }
         // Back to the page they were trying to open (e.g. a shared trip link).
         navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true });
       } catch (err) {
@@ -36,10 +52,12 @@ export default function Login() {
   });
 
   return (
-    <div className="relative min-h-screen overflow-hidden flex items-center justify-center">
+    <div className="relative min-h-screen overflow-hidden">
       {/* ── Full-screen looping video background ───────────────────────────────── */}
       <video
         src="/travel-bg.mp4"
+        poster="/travel-bg-poster.jpg"
+        preload="auto"
         autoPlay
         loop
         muted
@@ -47,49 +65,97 @@ export default function Login() {
         className="absolute inset-0 w-full h-full object-cover z-0"
       />
 
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-slate-950/40 z-10" />
+      {/* Dark gradient: heavier on the left where the text sits, lighter on the right */}
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-slate-950/30 lg:bg-gradient-to-r lg:from-slate-950/80 lg:via-slate-950/40 lg:to-slate-950/10 z-10" />
 
-      {/* ── Login modal ────────────────────────────────────────────────────────── */}
-      <div className="relative z-20 w-[85%] sm:w-full max-w-md max-h-[85vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-5 sm:p-8">
-        {/* Brand */}
-        <div className="flex items-center gap-2.5 mb-7">
-          <img src="/logo.png" alt="" className="w-9 h-9 rounded-full" />
-          <span className="text-[#2563EB]" style={{ fontSize: 22, fontWeight: 800 }}>
-            TripMate
-          </span>
+      {/* ── Desktop header: brand on the left, sign-in on the right ─────────────── */}
+      <header className="hidden lg:block absolute top-0 inset-x-0 z-30">
+        <div className="max-w-6xl mx-auto px-8 h-20 flex items-center justify-between text-white">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="" className="w-10 h-10 rounded-full" />
+            <span style={{ fontSize: 24, fontWeight: 800 }}>TripMate</span>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => handleGoogleLogin()}
+              disabled={isLoading}
+              className="flex items-center gap-2.5 pl-3 pr-5 py-2 rounded-full bg-white hover:bg-slate-100 text-slate-800 shadow-lg disabled:opacity-60 transition-colors"
+              style={{ fontSize: 14, fontWeight: 600 }}
+            >
+              {isLoading ? <span className="google-btn-spinner" /> : <GoogleIcon />}
+              {isLoading ? 'Signing in…' : returning ? 'Sign in with Google' : 'Get started with Google'}
+            </button>
+            {error && (
+              <p className="absolute right-0 top-full mt-2 w-max text-[#fca5a5]" style={{ fontSize: 13, fontWeight: 500 }}>
+                {error}
+              </p>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="relative z-20 min-h-screen max-w-6xl mx-auto px-5 sm:px-8 py-8 lg:pt-28 lg:pb-16 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 lg:gap-8">
+        {/* ── Brand + pitch ────────────────────────────────────────────────────── */}
+        <div className="flex-1 lg:flex-none flex flex-col text-white lg:max-w-lg">
+          <div className="flex lg:hidden items-center gap-2.5">
+            <img src="/logo.png" alt="" className="w-10 h-10 rounded-full" />
+            <span style={{ fontSize: 24, fontWeight: 800 }}>TripMate</span>
+          </div>
+
+          <div className="mt-auto lg:mt-0">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl leading-[1.1] tracking-tight" style={{ fontWeight: 800 }}>
+              Don't travel alone.
+              <br />
+              Find your crew.
+            </h2>
+            <p className="hidden lg:block mt-5 text-white/80" style={{ fontSize: 17 }}>
+              Join trips hosted by real travellers, or post your own and pick who comes along.
+            </p>
+            <ul className="mt-4 lg:mt-8 flex flex-wrap gap-2.5">
+              {['Verified travellers', 'Trip group chats', 'Women only trips'].map((f) => (
+                <li
+                  key={f}
+                  className="px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur border border-white/20 text-white/90"
+                  style={{ fontSize: 13, fontWeight: 500 }}
+                >
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
-        {/* Heading */}
-        <h1 className="text-slate-900 tracking-tight text-2xl sm:text-3xl" style={{ fontWeight: 800 }}>
-          Hello, Again!
-        </h1>
-        <p className="text-slate-500 mt-2" style={{ fontSize: 15 }}>
-          Sign in to start your adventure.
-        </p>
-
-        {/* ── Google auth (REAL: handler + variables preserved) ───────────────── */}
-        <button
-          onClick={() => handleGoogleLogin()}
-          disabled={isLoading}
-          className="w-full flex items-center justify-center gap-3 mt-7 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 text-white rounded-xl py-3.5 transition-colors"
-          style={{ fontSize: 15, fontWeight: 600 }}
-        >
-          {isLoading ? <span className="google-btn-spinner" /> : <GoogleIcon />}
-          {isLoading ? 'Signing in…' : 'Continue with Google'}
-        </button>
-
-        {/* Error */}
-        {error && (
-          <p className="text-[#ef4444] mt-4 text-center" style={{ fontSize: 13, fontWeight: 500 }}>
-            {error}
+        {/* ── Sign-in card ─────────────────────────────────────────────────────── */}
+        <div className="lg:hidden w-full max-w-sm mx-auto bg-slate-950/40 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl p-6 sm:p-8">
+          <h1 className="text-white tracking-tight text-2xl" style={{ fontWeight: 800 }}>
+            {returning ? 'Welcome back!' : 'Get started'}
+          </h1>
+          <p className="text-white/70 mt-1.5" style={{ fontSize: 15 }}>
+            {returning ? 'Sign in to pick up where you left off.' : 'Sign in to find your next trip.'}
           </p>
-        )}
 
-        <p className="flex items-center justify-center gap-1.5 text-slate-400 mt-6" style={{ fontSize: 12 }}>
-          <ShieldCheck size={14} className="text-[#16a34a]" />
-          We never post anything without your permission.
-        </p>
+          {/* ── Google auth (REAL: handler + variables preserved) ─────────────── */}
+          <button
+            onClick={() => handleGoogleLogin()}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-3 mt-6 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 text-white rounded-xl py-3.5 transition-colors"
+            style={{ fontSize: 15, fontWeight: 600 }}
+          >
+            {isLoading ? <span className="google-btn-spinner" /> : <GoogleIcon />}
+            {isLoading ? 'Signing in…' : 'Continue with Google'}
+          </button>
+
+          {error && (
+            <p className="text-[#ef4444] mt-4 text-center" style={{ fontSize: 13, fontWeight: 500 }}>
+              {error}
+            </p>
+          )}
+
+          <p className="flex items-center justify-center gap-1.5 text-white/60 mt-5" style={{ fontSize: 12 }}>
+            <ShieldCheck size={14} className="text-[#16a34a]" />
+            We never post anything without your permission.
+          </p>
+        </div>
       </div>
     </div>
   );

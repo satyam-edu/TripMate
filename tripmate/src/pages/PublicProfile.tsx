@@ -3,11 +3,12 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { BadgeCheck, Calendar, Compass, Flag, Link2, MapPin, MoreVertical, ShieldOff, Star, UserX, Wallet, X } from 'lucide-react';
 import api, { apiErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor } from '../components/ui-bits';
+import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
 
 /* ── Types (match GET /api/users/:id — private fields already stripped server-side) ── */
 interface PublicTrip {
   id: string;
+  slug: string | null;
   destination: string;
   country: string;
   startDate: string;
@@ -289,7 +290,7 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
 
   return (
     <Link
-      to={`/trips/${trip.id}`}
+      to={tripPath(trip)}
       className="block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_10px_36px_rgba(15,23,42,0.10)] transition-shadow"
     >
       <div className="relative">
@@ -377,7 +378,7 @@ function ReportModal({ name, userId, onClose }: { name: string; userId: string; 
 
         {sent ? (
           <p className="text-slate-600 text-sm mt-3">
-            Thanks — we've received your report and will look into it. You don't need to do anything else.
+            Thanks, we've received your report and will look into it. You don't need to do anything else.
           </p>
         ) : (
           <>

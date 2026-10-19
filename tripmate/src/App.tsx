@@ -18,7 +18,7 @@ function ServerWakingBanner() {
   if (!waking) return null;
   return (
     <div className="fixed top-0 inset-x-0 z-[100] bg-amber-500 text-white text-sm font-semibold text-center py-2 px-4">
-      Waking up the server — this can take up to a minute on the first request. Hang tight…
+      Waking up the server. This can take up to a minute on the first request. Hang tight…
     </div>
   );
 }

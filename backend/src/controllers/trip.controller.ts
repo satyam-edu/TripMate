@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { isValidTags, isPrismaError } from '../utils';
+import { isValidTags, isPrismaError, slugify, isUuid } from '../utils';
 import { blockedUserIds } from './safety.controller';
+import { findCoverImage } from '../services/coverImage';
 
 const FEED_PAGE_SIZE = 12;
 
@@ -17,6 +18,18 @@ interface TripBody {
   coverImage?: string;
   description?: string;
   womenOnly?: boolean;
+}
+
+// Unique readable URL part for a new trip: "goa", then "goa-2", "goa-3"...
+// ponytail: check-then-insert can race; the unique index makes a loser fail with a 500. Retry if it ever matters.
+const RESERVED_SLUGS = ['hosted', 'joined']; // would clash with GET /api/trips/hosted and /joined
+export async function uniqueTripSlug(destination: string): Promise<string> {
+  let base = slugify(destination) || 'trip';
+  if (RESERVED_SLUGS.includes(base)) base = `${base}-trip`;
+  for (let n = 1; ; n++) {
+    const slug = n === 1 ? base : `${base}-${n}`;
+    if (!(await prisma.trip.findUnique({ where: { slug }, select: { id: true } }))) return slug;
+  }
 }
 
 // Validates a create/edit body. Returns the clean data, or an error message.
@@ -53,12 +66,6 @@ function parseTripBody(body: TripBody) {
     return { error: 'budget and maxGuests must be valid positive numbers.' };
   }
 
-  let finalCoverImage: string = coverImage ?? '';
-  if (!finalCoverImage || finalCoverImage.trim() === '') {
-    const seed = encodeURIComponent(destination.split(',')[0]!.trim() || 'travel');
-    finalCoverImage = `https://picsum.photos/seed/${seed}/800/600`;
-  }
-
   return {
     data: {
       destination,
@@ -68,7 +75,7 @@ function parseTripBody(body: TripBody) {
       budget:      budgetInt,
       maxGuests:   guestsInt,
       tags:        tags ?? [],
-      coverImage:  finalCoverImage,
+      coverImage:  coverImage?.trim() ?? '', // empty = auto-pick from the destination
       description: description && description.trim() !== '' ? description.trim() : null,
       womenOnly:   womenOnly === true,
     },
@@ -99,7 +106,10 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
       }
     }
 
-    const trip = await prisma.trip.create({ data: { hostId, ...parsed.data } });
+    const coverImage = parsed.data.coverImage || (await findCoverImage(parsed.data.destination, parsed.data.country));
+    const trip = await prisma.trip.create({
+      data: { hostId, ...parsed.data, coverImage, slug: await uniqueTripSlug(parsed.data.destination) },
+    });
     res.status(201).json(trip);
   } catch (error: unknown) {
     console.error('[createTrip]', error);
@@ -147,7 +157,13 @@ export const updateTrip = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const updated = await prisma.trip.update({ where: { id }, data: parsed.data });
+    // No cover sent: keep the current one unless the destination changed.
+    const coverImage =
+      parsed.data.coverImage ||
+      (parsed.data.destination === trip.destination
+        ? trip.coverImage
+        : await findCoverImage(parsed.data.destination, parsed.data.country));
+    const updated = await prisma.trip.update({ where: { id }, data: { ...parsed.data, coverImage } });
     res.status(200).json(updated);
   } catch (error) {
     console.error('[updateTrip]', error);
@@ -258,26 +274,29 @@ export const getAllTrips = async (req: Request, res: Response): Promise<void> =>
 // One trip's detail page: host card, who's going, and the viewer's own request (if any).
 export const getTrip = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = req.params['id'] as string;
+    const param = req.params['id'] as string;
     const userId = req.userId as string;
-    const [trip, myRequest] = await Promise.all([
-      prisma.trip.findUnique({
-        where: { id },
-        include: {
-          host: { select: { id: true, name: true, avatar: true, bio: true, location: true, socialHandle: true } },
-          requests: {
-            where: { status: 'APPROVED' },
-            orderBy: { createdAt: 'asc' },
-            select: { user: { select: { id: true, name: true, avatar: true } } },
-          },
+    // The link can carry either the readable slug or the plain id (older shares).
+    const trip = await prisma.trip.findUnique({
+      where: isUuid(param) ? { id: param } : { slug: param },
+      include: {
+        host: { select: { id: true, name: true, avatar: true, bio: true, location: true, socialHandle: true } },
+        requests: {
+          where: { status: 'APPROVED' },
+          orderBy: { createdAt: 'asc' },
+          select: { user: { select: { id: true, name: true, avatar: true } } },
         },
-      }),
-      prisma.request.findUnique({ where: { tripId_userId: { tripId: id, userId } }, select: { id: true, status: true } }),
-    ]);
+      },
+    });
     if (!trip) {
       res.status(404).json({ error: 'Trip not found.' });
       return;
     }
+
+    const myRequest = await prisma.request.findUnique({
+      where: { tripId_userId: { tripId: trip.id, userId } },
+      select: { id: true, status: true },
+    });
 
     const { requests, ...rest } = trip;
     res.status(200).json({ ...rest, members: requests.map((r) => r.user), myRequest });

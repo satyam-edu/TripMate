@@ -219,7 +219,7 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
         existing.user.email,
         approved ? `You're going to ${existing.trip.destination}! 🎉` : `Update on your ${existing.trip.destination} request`,
         approved
-          ? `<p>Good news — your request to join <strong>${existing.trip.destination}</strong> was accepted!</p>
+          ? `<p>Good news! Your request to join <strong>${existing.trip.destination}</strong> was accepted!</p>
              <p><a href="${process.env.FRONTEND_URL ?? ''}/requests?tab=sent">See it on TripMate</a></p>`
           : `<p>Your request to join <strong>${existing.trip.destination}</strong> was declined.</p>
              <p><a href="${process.env.FRONTEND_URL ?? ''}/">Find another trip on TripMate</a></p>`,

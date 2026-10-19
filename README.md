@@ -2,18 +2,36 @@
 
 A travel companion finding app where hosts post trips and travelers request to join. Built as a fullstack project with Google sign in, a Postgres database on Neon, and a React frontend.
 
-🌐 **Live**: https://tripmate-gamma-two.vercel.app · **API**: https://tripmate-api-mnhk.onrender.com
+🌐 **Live**: https://www.tripmateapp.tech · **API**: https://tripmate-api-mnhk.onrender.com
 
 ---
 
 ## Features
 
-- **Google OAuth** sign-in (no passwords to manage)
-- **Post a trip**: destination, dates, budget, tags, cover image, max guests
-- **Browse trips** posted by other travelers, filter by tags
-- **Request to join** a trip; hosts can approve or reject from their Hub
-- **Profile** with bio, location, social handle, and trip history
-- Mobile-first responsive UI
+**Trips**
+- **Post a trip**: destination, dates, budget, category, vibes, cover image, max guests, optional women-only
+- **Browse and filter**: server-side search, category pills, budget and date range, "Load more" paging
+- **Trip page** (`/trips/:id`): details, who's going, host card, share link, and an action panel that adapts to your status
+- **Edit and delete** your hosted trips; a "people waiting" badge shows pending requests
+
+**Joining**
+- **Request to join** with a note; hosts approve or decline from Requests. Full or started trips can't be joined
+- **Cancel** a pending request or **leave** a trip you joined
+- **Women-only trips** limited to travellers who set their gender to Woman
+
+**Chat and alerts**
+- **Real-time chat** (Socket.IO): a group chat per trip and one-on-one inquiries with the host, with replies, unread badges and pop-up alerts
+- **Notifications**: live in-app bell, plus email alerts for requests and decisions (Resend)
+
+**People and trust**
+- **Google sign-in** (no passwords) and **phone verification** with Firebase OTP
+- **Profiles**: bio, location, vibes, social link, photo and cover upload, trip history
+- **Public profiles** (`/users/:id`) with hosted trips and reviews
+- **Reviews**: 1-5 stars between people who were on the same trip, after it ends
+- **Safety**: block and report users
+
+**Platform**
+- Mobile-first responsive UI, server wake-up banner for the free-tier cold start, rate limiting and input limits
 
 ---
 
@@ -38,15 +56,16 @@ TripMate/
 ├── backend/             # Express + Prisma API
 │   ├── prisma/          # schema, migrations, seed scripts
 │   └── src/
-│       ├── controllers/ # auth, user, trip, request, chat, notification
+│       ├── controllers/ # auth, user, trip, request, chat, notification, review, safety, image
+│       ├── services/    # email (Resend)
 │       ├── middlewares/ # JWT verification
-│       ├── routes/      # /api/auth, /api/users, /api/trips, /api/requests, /api/chats, /api/notifications
+│       ├── routes/      # /api/auth, /api/users, /api/trips, /api/requests, /api/chats, /api/notifications, /api/images
 │       └── server.ts    # app entry
 └── tripmate/            # Vite + React frontend
     └── src/
-        ├── pages/       # Home, Login, PostTab, Hub, Profile, Chats
-        ├── components/  # TripCard, CreateTripModal, Layout, ui-bits
-        ├── context/     # auth context
+        ├── pages/       # Home, Login, PostTab, Requests, Chats, Profile, PublicProfile, TripDetail
+        ├── components/  # TripCard, Layout, ui-bits
+        ├── context/     # auth and chat-alert contexts
         └── services/    # axios API client
 ```
 
@@ -84,6 +103,15 @@ GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 JWT_SECRET=any-long-random-string
 FRONTEND_URL=http://localhost:5173
+
+# Phone verification (Firebase service account)
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+
+# Optional: email alerts
+RESEND_API_KEY=
+EMAIL_FROM=
 ```
 
 **`tripmate/.env`**
@@ -126,6 +154,7 @@ Base URL: `/api`
 | `GET` | `/users/me` | ✅ | Current user profile |
 | `GET` | `/users/:id` | — | Public profile: bio, location, social link, hosted trips |
 | `PATCH` | `/users/me` | ✅ | Update profile |
+| `POST` | `/users/me/phone/verify` | ✅ | Verify phone with a Firebase ID token |
 | `PUT` | `/users/me/photo/:kind` | ✅ | Upload profile photo or cover (`kind` = `avatar` / `cover`, raw image body) |
 | `DELETE` | `/users/me/photo/:kind` | ✅ | Remove profile photo or cover |
 | `GET` | `/images/:id` | — | Serve an uploaded photo |
@@ -136,14 +165,18 @@ Base URL: `/api`
 | `POST` | `/trips` | ✅ | Create a trip |
 | `GET` | `/trips/hosted` | ✅ | Trips you've hosted |
 | `GET` | `/trips/joined` | ✅ | Trips you've joined |
-| `GET` | `/trips/:id` | ✅ | One trip: host, who's going, and your request status |
+| `GET` | `/trips/:id` | ✅ | One trip by slug (`/trips/goa-coastline`) or id: host, who's going, and your request status |
 | `GET` | `/trips/:id/reviews` | ✅ | Who you can still review on this trip |
 | `POST` | `/trips/:id/reviews` | ✅ | Leave a 1-5 star review (host ↔ traveller, once the trip has ended) |
-| `POST` | `/trips/:id/join` | ✅ | Request to join a trip |
+| `PATCH` | `/trips/:id` | ✅ | Edit a trip (host only) |
+| `DELETE` | `/trips/:id` | ✅ | Delete a trip (host only) |
+| `PATCH` | `/trips/:id/reviews/:reviewId` | ✅ | Edit your review |
+| `DELETE` | `/trips/:id/reviews/:reviewId` | ✅ | Delete your review |
 | `POST` | `/requests` | ✅ | Send a join request |
 | `GET` | `/requests/received` | ✅ | Requests for your hosted trips |
 | `GET` | `/requests/sent` | ✅ | Requests you've sent |
-| `PATCH` | `/requests/:id` | ✅ | Approve / reject a request |
+| `PATCH` | `/requests/:id` | ✅ | Approve / reject a request (host only) |
+| `DELETE` | `/requests/:id` | ✅ | Cancel a pending request or leave a trip |
 | `GET` | `/chats` | ✅ | Your group and inquiry chats (with latest message and unread count) |
 | `GET` | `/chats/unread-count` | ✅ | Total unread messages across all chats |
 | `GET` | `/chats/:kind/:id/messages` | ✅ | Messages of one chat (`kind` = `groups` + tripId, or `inquiries` + requestId) |
@@ -165,7 +198,7 @@ The project is built to deploy across three free-tier services.
 - **Root Directory**: `backend`
 - **Build Command**: `npm install --include=dev && npm run build && npx prisma migrate deploy`
 - **Start Command**: `npm start`
-- **Env vars**: copy from `backend/.env`, plus `NODE_ENV=production` and `FRONTEND_URL=<your Vercel URL>`
+- **Env vars**: copy from `backend/.env`, plus `NODE_ENV=production` and `FRONTEND_URL=<your site URL>` (comma-separate to allow several origins; use one URL in production, as email links use it), plus the three `FIREBASE_*` vars for phone verification
 
 ### Frontend → Vercel
 
@@ -173,13 +206,17 @@ The project is built to deploy across three free-tier services.
 - **Framework**: Vite (auto-detected)
 - **Env vars**: `VITE_API_URL=<your Render URL>`, `VITE_GOOGLE_CLIENT_ID=<your client id>`
 
+### Custom domain
+
+Bought on get.tech and added in Vercel → Settings → Domains. DNS at get.tech: `A @ 216.198.79.1` and `CNAME www <value Vercel shows>`. Also add the domain to Firebase → Authentication → Authorized domains.
+
 ### Database → Neon
 
 Already cloud-hosted. Use the pooled URL for `DATABASE_URL` and the direct URL for `DIRECT_URL` (Prisma uses the latter for migrations).
 
 ### Google OAuth
 
-In Google Cloud Console → Credentials, add your Vercel URL to **Authorized JavaScript origins** and **Authorized redirect URIs**.
+In Google Cloud Console → Credentials, add your site URL (e.g. `https://www.tripmateapp.tech`) to **Authorized JavaScript origins** and **Authorized redirect URIs**.
 
 ---
 
@@ -194,6 +231,7 @@ In Google Cloud Console → Credentials, add your Vercel URL to **Authorized Jav
 | `npm start` | Run compiled server (production) |
 | `npm run seed` | Seed sample users & trips |
 | `npm run seed:demo` | Seed demo join requests |
+| `npm test` | Run backend tests |
 
 **Frontend**
 

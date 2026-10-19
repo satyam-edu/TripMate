@@ -7,7 +7,7 @@ import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage } from '../services/api';
 import type { Trip } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, Skeleton, tagColor, formatDateRange, formatBudget, cn } from '../components/ui-bits';
+import { Avatar, Skeleton, tagColor, formatDateRange, formatBudget, cn, tripPath } from '../components/ui-bits';
 
 const COVER = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&h=400&fit=crop&auto=format';
 
@@ -273,7 +273,7 @@ export default function Profile() {
   const deleteTrip = async (trip: Trip) => {
     if (!window.confirm(`Delete your ${trip.destination} trip? Everyone who asked to join will lose their request.`)) return;
     try {
-      await api.delete(`/trips/${trip.id}`);
+      await api.delete(tripPath(trip));
       setHosted((rows) => rows.filter((t) => t.id !== trip.id));
     } catch (err) {
       console.error('[Profile] delete trip failed', err);
@@ -822,7 +822,7 @@ function ProfileTripCard({
   return (
     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)]">
       <div className="relative">
-        <Link to={`/trips/${trip.id}`} className="block aspect-[16/10] bg-slate-100" tabIndex={-1} aria-hidden="true">
+        <Link to={tripPath(trip)} className="block aspect-[16/10] bg-slate-100" tabIndex={-1} aria-hidden="true">
           <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
         </Link>
         {tag && (
@@ -839,7 +839,7 @@ function ProfileTripCard({
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
             <MapPin size={16} className="text-blue-600 shrink-0" />
-            <Link to={`/trips/${trip.id}`} className="text-[17px] font-bold truncate hover:text-blue-600 transition-colors">
+            <Link to={tripPath(trip)} className="text-[17px] font-bold truncate hover:text-blue-600 transition-colors">
               {trip.destination}
             </Link>
           </div>
@@ -927,7 +927,7 @@ function EditTripModal({
     setSaving(true);
     setError(null);
     try {
-      const { data } = await api.patch<Trip>(`/trips/${trip.id}`, {
+      const { data } = await api.patch<Trip>(tripPath(trip), {
         destination: destination.trim(),
         country: country.trim(),
         startDate: new Date(startDate).toISOString(),

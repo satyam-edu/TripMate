@@ -5,6 +5,11 @@ export function cn(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
+/* Trip page URL: the readable slug ("/trips/udaipur-royal-heritage"), or the id for trips without one. */
+export function tripPath(trip: { id: string; slug?: string | null }): string {
+  return `/trips/${trip.slug ?? trip.id}`;
+}
+
 export function getInitials(name: string): string {
   return name
     .split(' ')

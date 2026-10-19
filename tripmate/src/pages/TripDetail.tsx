@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import api, { apiErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor } from '../components/ui-bits';
+import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
 
 /* ── Types (match GET /api/trips/:id) ───────────────────────────────────────── */
 interface Person {
@@ -25,6 +25,7 @@ interface Person {
 
 interface TripDetailData {
   id: string;
+  slug: string | null;
   hostId: string;
   destination: string;
   country: string;
@@ -49,7 +50,7 @@ const normalizeUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : `https:
    TRIP DETAIL  (/trips/:id, shareable link)
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function TripDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>(); // a slug or, for older links, the trip id
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -70,6 +71,8 @@ export default function TripDetail() {
         if (cancelled) return;
         setTrip(data);
         setView('ready');
+        // Older plain-id links get the readable URL (same page, no reload).
+        if (window.location.pathname !== tripPath(data)) navigate(tripPath(data), { replace: true });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -78,7 +81,7 @@ export default function TripDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id, reloadKey]);
+  }, [id, reloadKey, navigate]);
 
   if (view === 'loading') return <DetailSkeleton />;
   if (view === 'error') return <ErrorState onRetry={() => setReloadKey((k) => k + 1)} />;
@@ -467,7 +470,7 @@ function ReviewSection({ tripId }: { tripId: string }) {
       <p className="text-slate-500 text-sm mb-4">Help other travellers know who to trust.</p>
 
       {state.pending.length === 0 && state.given.length === 0 && (
-        <p className="text-slate-400 text-sm">Nothing to review — you were on this trip alone.</p>
+        <p className="text-slate-400 text-sm">Nothing to review. You were on this trip alone.</p>
       )}
 
       {state.pending.map((person) => (

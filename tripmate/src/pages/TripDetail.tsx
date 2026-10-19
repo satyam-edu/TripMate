@@ -467,7 +467,7 @@ function ReviewSection({ tripId }: { tripId: string }) {
       <p className="text-slate-500 text-sm mb-4">Help other travellers know who to trust.</p>
 
       {state.pending.length === 0 && state.given.length === 0 && (
-        <p className="text-slate-400 text-sm">Nothing to review — you were on this trip alone.</p>
+        <p className="text-slate-400 text-sm">Nothing to review. You were on this trip alone.</p>
       )}
 
       {state.pending.map((person) => (

@@ -377,7 +377,7 @@ function ReportModal({ name, userId, onClose }: { name: string; userId: string; 
 
         {sent ? (
           <p className="text-slate-600 text-sm mt-3">
-            Thanks — we've received your report and will look into it. You don't need to do anything else.
+            Thanks, we've received your report and will look into it. You don't need to do anything else.
           </p>
         ) : (
           <>

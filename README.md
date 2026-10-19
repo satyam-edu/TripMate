@@ -2,7 +2,7 @@
 
 A travel companion finding app where hosts post trips and travelers request to join. Built as a fullstack project with Google sign in, a Postgres database on Neon, and a React frontend.
 
-🌐 **Live**: https://tripmate-gamma-two.vercel.app · **API**: https://tripmate-api-mnhk.onrender.com
+🌐 **Live**: https://www.tripmateapp.tech · **API**: https://tripmate-api-mnhk.onrender.com
 
 ---
 
@@ -165,7 +165,7 @@ The project is built to deploy across three free-tier services.
 - **Root Directory**: `backend`
 - **Build Command**: `npm install --include=dev && npm run build && npx prisma migrate deploy`
 - **Start Command**: `npm start`
-- **Env vars**: copy from `backend/.env`, plus `NODE_ENV=production` and `FRONTEND_URL=<your Vercel URL>`
+- **Env vars**: copy from `backend/.env`, plus `NODE_ENV=production` and `FRONTEND_URL=<your site URL>` (comma-separate to allow several origins; use one URL in production, as email links use it), plus the three `FIREBASE_*` vars for phone verification
 
 ### Frontend → Vercel
 
@@ -173,13 +173,17 @@ The project is built to deploy across three free-tier services.
 - **Framework**: Vite (auto-detected)
 - **Env vars**: `VITE_API_URL=<your Render URL>`, `VITE_GOOGLE_CLIENT_ID=<your client id>`
 
+### Custom domain
+
+Bought on get.tech and added in Vercel → Settings → Domains. DNS at get.tech: `A @ 216.198.79.1` and `CNAME www <value Vercel shows>`. Also add the domain to Firebase → Authentication → Authorized domains.
+
 ### Database → Neon
 
 Already cloud-hosted. Use the pooled URL for `DATABASE_URL` and the direct URL for `DIRECT_URL` (Prisma uses the latter for migrations).
 
 ### Google OAuth
 
-In Google Cloud Console → Credentials, add your Vercel URL to **Authorized JavaScript origins** and **Authorized redirect URIs**.
+In Google Cloud Console → Credentials, add your site URL (e.g. `https://www.tripmateapp.tech`) to **Authorized JavaScript origins** and **Authorized redirect URIs**.
 
 ---
 

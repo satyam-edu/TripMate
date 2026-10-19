@@ -18,7 +18,7 @@ const TRENDING: { name: string; image: string }[] = [
   { name: 'Manali', image: 'https://images.unsplash.com/photo-1593181629936-11c609b8db9b?w=200&h=200&fit=crop&auto=format' },
   { name: 'Spiti', image: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=200&h=200&fit=crop&auto=format' },
   { name: 'Kerala', image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=200&h=200&fit=crop&auto=format' },
-  { name: 'Hampi', image: 'https://images.unsplash.com/photo-1600100397608-f010c1aefebc?w=200&h=200&fit=crop&auto=format' },
+  { name: 'Hampi', image: 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?w=200&h=200&fit=crop&auto=format' },
   { name: 'Ladakh', image: 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?w=200&h=200&fit=crop&auto=format' },
 ];
 

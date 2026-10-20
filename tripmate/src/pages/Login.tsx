@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { AuthUser } from '../context/AuthContext';
+import type { Trip, TripHost } from '../types';
+import { Avatar } from '../components/ui-bits';
 
 // Remember who has signed in on this device, so we only say "welcome back" to returning users.
 const SEEN_KEY = 'tripmate_returning';
@@ -15,6 +17,40 @@ const isReturning = () => {
     return false;
   }
 };
+
+// Desktop only: a one-line social-proof pill built from the real hosts with open trips.
+// The feed endpoint is public; if it's slow or fails we just show nothing.
+function HostsPill() {
+  const [hosts, setHosts] = useState<TripHost[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ trips: Trip[] }>('/trips')
+      .then(({ data }) => {
+        if (cancelled) return;
+        const unique = new Map(data.trips.map((t) => [t.host.id, t.host]));
+        setHosts([...unique.values()]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (hosts.length === 0) return null;
+  return (
+    <div className="hidden lg:flex self-end h-12 items-center gap-3 rounded-full bg-slate-950/40 backdrop-blur-2xl border border-white/20 pl-3 pr-5 text-white">
+      <div className="flex -space-x-2">
+        {hosts.slice(0, 4).map((h) => (
+          <Avatar key={h.id} src={h.avatar} name={h.name} size={30} ring />
+        ))}
+      </div>
+      <p className="text-[14px] text-white/90">
+        <span className="font-semibold text-white">{hosts.length} hosts</span> are planning trips right now
+      </p>
+    </div>
+  );
+}
 
 export default function Login() {
   const { login } = useAuth();
@@ -94,7 +130,9 @@ export default function Login() {
         </div>
       </header>
 
-      <div className="relative z-20 min-h-screen max-w-6xl mx-auto px-5 sm:px-8 py-8 lg:pt-28 lg:pb-16 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 lg:gap-8">
+      <div className="relative z-20 min-h-screen max-w-6xl mx-auto px-5 sm:px-8 py-8 lg:pt-28 lg:pb-16 flex flex-col lg:flex-row lg:items-end">
+        {/* One row on desktop: the pitch on the left, the hosts pill on the right, both sitting on the bottom edge. */}
+        <div className="flex-1 lg:flex-none lg:w-full flex flex-col lg:flex-row lg:justify-between gap-5 lg:gap-8">
         {/* ── Brand + pitch ────────────────────────────────────────────────────── */}
         <div className="flex-1 lg:flex-none flex flex-col text-white lg:max-w-lg">
           <div className="flex lg:hidden items-center gap-2.5">
@@ -124,6 +162,8 @@ export default function Login() {
             </ul>
           </div>
         </div>
+
+        <HostsPill />
 
         {/* ── Sign-in card ─────────────────────────────────────────────────────── */}
         <div className="lg:hidden w-full max-w-sm mx-auto bg-slate-950/40 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl p-6 sm:p-8">
@@ -156,6 +196,7 @@ export default function Login() {
             We never post anything without your permission.
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

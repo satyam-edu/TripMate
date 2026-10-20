@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { AuthUser } from '../context/AuthContext';
-import type { Trip, TripHost } from '../types';
+import type { Trip } from '../types';
 import { Avatar } from '../components/ui-bits';
 
 // Remember who has signed in on this device, so we only say "welcome back" to returning users.
@@ -18,18 +18,67 @@ const isReturning = () => {
   }
 };
 
-// Desktop only: a one-line social-proof pill built from the real hosts with open trips.
-// The feed endpoint is public; if it's slow or fails we just show nothing.
+// Short line under the logo: what TripMate is.
+const TAGLINE = 'Find travel buddies, join trips.';
+
+// The whole headline cycles through short two-line messages about what TripMate does
+// (fade + slide, see .headline-* in index.css). Skipped for people who prefer reduced motion.
+const HEADLINES: [string, string][] = [
+  ["Don't travel alone.", 'Find your crew.'],
+  ['Great trips need', 'great company.'],
+  ['Post your trip.', 'Pick your people.'],
+  ['Spiti to Goa,', 'someone is going.'],
+  ['Plan it together.', 'Chat, split, go.'],
+  ['Travel with people', 'you can trust.'],
+  ['Strangers today,', 'travel friends soon.'],
+  ['Your next adventure', 'needs a crew.'],
+];
+// Steps through `count` items on a timer. `leaving` is true for the last `outMs` before each swap,
+// so the caller can play an exit animation first. Stays on item 0 for reduced-motion users.
+function useRotation(count: number, everyMs: number, outMs: number) {
+  const [index, setIndex] = useState(0);
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    if (count < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let swap: number | undefined;
+    const tick = window.setInterval(() => {
+      setLeaving(true);
+      swap = window.setTimeout(() => {
+        setIndex((i) => (i + 1) % count);
+        setLeaving(false);
+      }, outMs);
+    }, everyMs);
+    return () => {
+      window.clearInterval(tick);
+      window.clearTimeout(swap);
+    };
+  }, [count, everyMs, outMs]);
+
+  return { index: index % Math.max(count, 1), leaving };
+}
+
+function RotatingHeadline() {
+  const { index, leaving } = useRotation(HEADLINES.length, 5500, 700); // 700 = .headline-out duration
+  return (
+    <span key={index} className={`block ${leaving ? 'headline-out' : 'headline-in'}`}>
+      {HEADLINES[index]![0]}
+      <br />
+      {HEADLINES[index]![1]}
+    </span>
+  );
+}
+
+// Desktop only: a one-line social-proof pill built from the real open trips. The text cycles through
+// a few live facts. The feed endpoint is public; if it's slow or fails we just show nothing.
 function HostsPill() {
-  const [hosts, setHosts] = useState<TripHost[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
   useEffect(() => {
     let cancelled = false;
     api
       .get<{ trips: Trip[] }>('/trips')
       .then(({ data }) => {
-        if (cancelled) return;
-        const unique = new Map(data.trips.map((t) => [t.host.id, t.host]));
-        setHosts([...unique.values()]);
+        if (!cancelled) setTrips(data.trips);
       })
       .catch(() => {});
     return () => {
@@ -37,6 +86,21 @@ function HostsPill() {
     };
   }, []);
 
+  const hosts = [...new Map(trips.map((t) => [t.host.id, t.host])).values()];
+  const spotsLeft = (t: Trip) => t.maxGuests - ((t._count?.requests ?? 0) + 1);
+  const open = trips.filter((t) => spotsLeft(t) > 0);
+  const messages: ReactNode[] = [];
+  if (hosts.length > 0) messages.push(<><b className="text-white">{hosts.length} hosts</b> are planning trips right now</>);
+  if (open.length > 0) {
+    const seats = open.reduce((sum, t) => sum + spotsLeft(t), 0);
+    messages.push(<><b className="text-white">{open.length} trips</b> are open for new travellers</>);
+    messages.push(<><b className="text-white">{seats} spots</b> still waiting for a travel buddy</>);
+    const next = open.reduce((a, b) => (new Date(a.startDate) <= new Date(b.startDate) ? a : b));
+    const days = Math.max(0, Math.ceil((+new Date(next.startDate) - Date.now()) / 86_400_000));
+    messages.push(<>Next trip leaves <b className="text-white">{days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`}</b></>);
+  }
+
+  const { index, leaving } = useRotation(messages.length, 4200, 300); // 300 = .ticker-out duration
   if (hosts.length === 0) return null;
   return (
     <div className="hidden lg:flex self-end h-12 items-center gap-3 rounded-full bg-slate-950/40 backdrop-blur-2xl border border-white/20 pl-3 pr-5 text-white">
@@ -45,8 +109,13 @@ function HostsPill() {
           <Avatar key={h.id} src={h.avatar} name={h.name} size={30} ring />
         ))}
       </div>
-      <p className="text-[14px] text-white/90">
-        <span className="font-semibold text-white">{hosts.length} hosts</span> are planning trips right now
+      <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
+        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+      </span>
+      {/* Fixed width so the pill doesn't change size as the message changes. */}
+      <p key={index} className={`w-[270px] text-[14px] text-white/90 ${leaving ? 'ticker-out' : 'ticker-in'}`}>
+        {messages[index]}
       </p>
     </div>
   );
@@ -109,7 +178,12 @@ export default function Login() {
         <div className="max-w-6xl mx-auto px-8 h-20 flex items-center justify-between text-white">
           <div className="flex items-center gap-2.5">
             <img src="/logo.png" alt="" className="w-10 h-10 rounded-full" />
-            <span style={{ fontSize: 24, fontWeight: 800 }}>TripMate</span>
+            <span className="flex flex-col leading-tight">
+              <span style={{ fontSize: 24, fontWeight: 800 }}>TripMate</span>
+              <span className="uppercase tracking-[0.08em] text-white/70" style={{ fontSize: 10.5, fontWeight: 600 }}>
+                {TAGLINE}
+              </span>
+            </span>
           </div>
           <div className="relative">
             <button
@@ -134,17 +208,20 @@ export default function Login() {
         {/* One row on desktop: the pitch on the left, the hosts pill on the right, both sitting on the bottom edge. */}
         <div className="flex-1 lg:flex-none lg:w-full flex flex-col lg:flex-row lg:justify-between gap-5 lg:gap-8">
         {/* ── Brand + pitch ────────────────────────────────────────────────────── */}
-        <div className="flex-1 lg:flex-none flex flex-col text-white lg:max-w-lg">
+        <div className="flex-1 lg:flex-none flex flex-col text-white lg:max-w-xl">
           <div className="flex lg:hidden items-center gap-2.5">
             <img src="/logo.png" alt="" className="w-10 h-10 rounded-full" />
-            <span style={{ fontSize: 24, fontWeight: 800 }}>TripMate</span>
+            <span className="flex flex-col leading-tight">
+              <span style={{ fontSize: 24, fontWeight: 800 }}>TripMate</span>
+              <span className="uppercase tracking-[0.08em] text-white/70" style={{ fontSize: 10.5, fontWeight: 600 }}>
+                {TAGLINE}
+              </span>
+            </span>
           </div>
 
           <div className="mt-auto lg:mt-0">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl leading-[1.1] tracking-tight" style={{ fontWeight: 800 }}>
-              Don't travel alone.
-              <br />
-              Find your crew.
+              <RotatingHeadline />
             </h2>
             <p className="hidden lg:block mt-5 text-white/80" style={{ fontSize: 17 }}>
               Join trips hosted by real travellers, or post your own and pick who comes along.

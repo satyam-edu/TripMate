@@ -149,7 +149,7 @@ export default function Requests() {
             {received.map((r) => (
               <div
                 key={r.id}
-                className="bg-white border border-slate-200 rounded-3xl p-4 flex items-center gap-4 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
+                className="bg-white border border-slate-200 rounded-3xl p-4 flex flex-wrap items-center gap-x-4 gap-y-3 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
               >
                 <Link to={`/users/${r.user.id}`} className="shrink-0">
                   <Avatar src={r.user.avatar} name={r.user.name} size={52} />
@@ -163,13 +163,14 @@ export default function Requests() {
                     wants to join {r.trip.destination}
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                {/* Phones: buttons drop to their own full-width row so the card never overflows. */}
+                <div className="flex gap-2 w-full sm:w-auto sm:shrink-0">
                   <button
                     type="button"
                     onClick={() => navigate(`/chats?tab=inquiries&chatId=${r.id}`)}
                     aria-label={`Message ${r.user.name}`}
                     title="Message"
-                    className="w-9 h-9 flex items-center justify-center border border-slate-200 text-slate-500 rounded-full hover:border-blue-600 hover:text-blue-600 transition-colors"
+                    className="w-9 h-9 shrink-0 flex items-center justify-center border border-slate-200 text-slate-500 rounded-full hover:border-blue-600 hover:text-blue-600 transition-colors"
                   >
                     <MessageCircle size={15} />
                   </button>
@@ -177,7 +178,7 @@ export default function Requests() {
                     type="button"
                     disabled={acting[r.id]}
                     onClick={() => handleAction(r.id, 'REJECTED')}
-                    className="border border-slate-200 text-slate-500 rounded-full px-4 py-2 text-[13px] font-semibold hover:border-red-500 hover:text-red-500 disabled:opacity-50 transition-colors"
+                    className="flex-1 sm:flex-none border border-slate-200 text-slate-500 rounded-full px-4 py-2 text-[13px] font-semibold hover:border-red-500 hover:text-red-500 disabled:opacity-50 transition-colors"
                   >
                     Decline
                   </button>
@@ -185,7 +186,7 @@ export default function Requests() {
                     type="button"
                     disabled={acting[r.id]}
                     onClick={() => handleAction(r.id, 'APPROVED')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 py-2 text-[13px] font-semibold disabled:opacity-50 transition-colors"
+                    className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 py-2 text-[13px] font-semibold disabled:opacity-50 transition-colors"
                   >
                     Accept
                   </button>

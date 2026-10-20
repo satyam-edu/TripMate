@@ -291,7 +291,7 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
   return (
     <Link
       to={tripPath(trip)}
-      className="block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_10px_36px_rgba(15,23,42,0.10)] transition-shadow"
+      className="block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_8px_40px_rgba(37,99,235,0.25)] hover:border-blue-400/50 transition-[box-shadow,border-color] duration-300"
     >
       <div className="relative">
         <div className="aspect-[16/10] bg-slate-100">
@@ -314,9 +314,8 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
         )}
       </div>
       <div className="p-4">
-        <div className="flex items-center gap-1.5 text-slate-900 min-w-0 mb-1">
-          <MapPin size={16} className="text-blue-600 shrink-0" />
-          <span className="text-[17px] font-bold truncate">{trip.destination}</span>
+        <div className="flex items-start gap-1.5 text-slate-900 min-w-0 mb-1">
+          <span className="text-[17px] leading-snug font-bold line-clamp-2 break-words">{trip.destination}</span>
         </div>
         <p className="text-slate-400 text-[13px] mb-3">{trip.country}</p>
         <div className="flex items-center gap-4 text-slate-500 text-[13px]">

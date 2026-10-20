@@ -820,7 +820,7 @@ function ProfileTripCard({
   const spotsFilled = (trip._count?.requests ?? 0) + 1;
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)]">
+    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_8px_40px_rgba(37,99,235,0.25)] hover:border-blue-400/50 transition-[box-shadow,border-color] duration-300">
       <div className="relative">
         <Link to={tripPath(trip)} className="block aspect-[16/10] bg-slate-100" tabIndex={-1} aria-hidden="true">
           <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -836,16 +836,15 @@ function ProfileTripCard({
         </span>
       </div>
       <div className="p-4">
-        <div className="flex items-center justify-between gap-2 mb-1">
-          <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
-            <MapPin size={16} className="text-blue-600 shrink-0" />
-            <Link to={tripPath(trip)} className="text-[17px] font-bold truncate hover:text-blue-600 transition-colors">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <div className="flex items-start gap-1.5 text-slate-900 min-w-0">
+            <Link to={tripPath(trip)} className="text-[17px] leading-snug font-bold line-clamp-2 break-words hover:text-blue-600 transition-colors">
               {trip.destination}
             </Link>
           </div>
           <span
             className={cn(
-              'shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+              'shrink-0 mt-0.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
               kind === 'hosted' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600',
             )}
           >

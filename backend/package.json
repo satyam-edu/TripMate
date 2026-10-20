@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "seed": "ts-node --project tsconfig.json prisma/seed.ts",
     "seed:demo": "ts-node --project tsconfig.json prisma/seedDemoRequests.ts",
+    "seed:showcase": "ts-node -T --project tsconfig.json prisma/seedShowcase.ts",
     "test": "node --require ts-node/register --test src/**/*.test.ts"
   },
   "keywords": [],

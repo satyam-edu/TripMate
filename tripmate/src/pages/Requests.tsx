@@ -149,7 +149,7 @@ export default function Requests() {
             {received.map((r) => (
               <div
                 key={r.id}
-                className="bg-white border border-slate-200 rounded-3xl p-4 flex flex-wrap items-center gap-x-4 gap-y-3 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
+                className="bg-white border border-slate-200 rounded-3xl p-4 min-w-0 flex flex-wrap items-center gap-x-4 gap-y-3 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
               >
                 <Link to={`/users/${r.user.id}`} className="shrink-0">
                   <Avatar src={r.user.avatar} name={r.user.name} size={52} />
@@ -209,51 +209,65 @@ export default function Requests() {
             {sent.map((r) => (
               <div
                 key={r.id}
-                className="bg-white border border-slate-200 rounded-3xl p-4 flex items-center gap-4 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
+                className="bg-white border border-slate-200 rounded-3xl p-4 min-w-0 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
               >
-                <span className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 shrink-0">
-                  <img
-                    src={r.trip.coverImage || `https://loremflickr.com/200/200/${encodeURIComponent(r.trip.destination)}/travel`}
-                    alt={r.trip.destination}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-900 text-[15px] font-bold truncate">{r.trip.destination}</p>
-                  <p className="text-slate-500 truncate text-[13px]">
-                    {fmtDate(r.trip.startDate)} · Hosted by {r.trip.host.name.split(' ')[0]}
-                  </p>
-                  {r.status !== 'REJECTED' && (
+                <div className="flex gap-3.5">
+                  <span className="w-[72px] h-[72px] rounded-2xl overflow-hidden bg-slate-100 shrink-0">
+                    <img
+                      src={r.trip.coverImage || `https://loremflickr.com/200/200/${encodeURIComponent(r.trip.destination)}/travel`}
+                      alt={r.trip.destination}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-slate-900 text-[15px] leading-snug font-bold line-clamp-2 break-words">{r.trip.destination}</p>
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                          statusStyle[r.status] ?? 'bg-slate-100 text-slate-500',
+                        )}
+                      >
+                        {statusLabel[r.status] ?? r.status}
+                      </span>
+                    </div>
+                    <p className="text-slate-500 truncate text-[13px] mt-1">
+                      {fmtDate(r.trip.startDate)} · Hosted by {r.trip.host.name.split(' ')[0]}
+                    </p>
+                  </div>
+                </div>
+                {r.status !== 'REJECTED' && (
+                  <div className="mt-3.5 pt-3.5 border-t border-slate-100 flex gap-2">
                     <button
                       type="button"
                       onClick={() => navigate(`/chats?tab=inquiries&chatId=${r.id}`)}
-                      className="mt-0.5 flex items-center gap-1 text-[13px] font-semibold text-blue-600 hover:text-blue-700"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-full border border-blue-200 text-blue-600 hover:bg-blue-50 py-2 text-[13px] font-semibold transition-colors"
                     >
-                      <MessageCircle size={13} /> Message host
+                      <MessageCircle size={14} /> Message host
                     </button>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <span
-                    className={cn(
-                      'rounded-full px-4 py-1.5 text-[13px] font-semibold',
-                      statusStyle[r.status] ?? 'bg-slate-100 text-slate-500',
-                    )}
-                  >
-                    {statusLabel[r.status] ?? r.status}
-                  </span>
-                  {r.status !== 'REJECTED' && (
                     <button
                       type="button"
                       disabled={acting[r.id]}
                       onClick={() => handleCancel(r)}
-                      className="text-[12px] font-semibold text-slate-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                      className="flex-1 rounded-full border border-slate-200 text-slate-500 hover:border-red-500 hover:text-red-500 disabled:opacity-50 py-2 text-[13px] font-semibold transition-colors"
                     >
-                      {r.status === 'APPROVED' ? 'Leave trip' : 'Cancel'}
+                      {r.status === 'APPROVED' ? 'Leave trip' : 'Cancel request'}
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
+                {r.status === 'REJECTED' && (
+                  <div className="mt-3.5 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-3">
+                    <p className="text-slate-400 text-[13px]">The host couldn't fit you in this time.</p>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/')}
+                      className="shrink-0 rounded-full border border-slate-200 text-slate-600 hover:border-blue-600 hover:text-blue-600 px-4 py-2 text-[13px] font-semibold transition-colors"
+                    >
+                      Explore trips
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

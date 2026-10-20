@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import type { Trip } from '../types';
 import api, { apiErrorMessage } from '../services/api';
-import { MapPin, Calendar, Wallet, Users } from 'lucide-react';
+import { Calendar, Wallet, Users } from 'lucide-react';
 import { Avatar, cn, tagColor, formatDateRange, formatBudget, tripPath } from './ui-bits';
 import { useAuth } from '../context/AuthContext';
 
@@ -100,7 +100,7 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-[24px] border border-[#E2E8F0] overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_10px_36px_rgba(15,23,42,0.10)] transition-shadow">
+    <div className="bg-white rounded-[24px] border border-[#E2E8F0] overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_8px_40px_rgba(37,99,235,0.25)] hover:border-blue-400/50 transition-[box-shadow,border-color] duration-300">
       {/* Cover */}
       <div className="relative">
         <Link to={tripPath(trip)} className="block aspect-[16/10] bg-[#F1F5F9]" tabIndex={-1} aria-hidden="true">
@@ -133,12 +133,11 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
 
       {/* Body */}
       <div className="p-4">
-        <div className="flex items-center gap-1.5 text-[#0F172A] mb-1">
-          <MapPin size={16} className="text-[#2563EB] shrink-0" />
+        <div className="flex items-start gap-1.5 text-[#0F172A] mb-1">
           <Link
             to={tripPath(trip)}
-            className="truncate hover:text-[#2563EB] transition-colors"
-            style={{ fontSize: 17, fontWeight: 700 }}
+            className="line-clamp-2 break-words hover:text-[#2563EB] transition-colors"
+            style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.3 }}
           >
             {trip.destination}
           </Link>

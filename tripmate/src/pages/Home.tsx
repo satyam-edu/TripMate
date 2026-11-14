@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import api, { cachedGet } from '../services/api';
 import type { Trip } from '../types';
 import type { AuthUser } from '../context/AuthContext';
 import TripCard from '../components/TripCard';
@@ -528,7 +528,9 @@ function HomeSkeleton() {
 /* ═══════════════════════════════════════════════════════════════════════════════
    PAGE (data fetching, renders inside the routed AppShell)
    ═══════════════════════════════════════════════════════════════════════════════ */
-const EMPTY_FILTERS: FeedFilters = { category: null, q: '', minBudget: '', maxBudget: '', startDate: '', endDate: '' };
+type FeedPage = { trips: Trip[]; nextCursor: string | null };
+
+const EMPTY_FILTERS: FeedFilters ={ category: null, q: '', minBudget: '', maxBudget: '', startDate: '', endDate: '' };
 
 function buildQuery(filters: FeedFilters, cursor: string | null): string {
   const params = new URLSearchParams();
@@ -545,27 +547,37 @@ function buildQuery(filters: FeedFilters, cursor: string | null): string {
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [view, setView] = useState<ViewState>('loading');
+  const [cached] = useState(() => cachedGet<FeedPage>(`/trips?${buildQuery(EMPTY_FILTERS, null)}`));
+  const [trips, setTrips] = useState<Trip[]>(cached?.trips ?? []);
+  const [view, setView] = useState<ViewState>(cached ? (cached.trips.length ? 'ready' : 'empty') : 'loading');
   const [filters, setFilters] = useState<FeedFilters>(EMPTY_FILTERS);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(cached?.nextCursor ?? null);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchTrips = async (activeFilters: FeedFilters) => {
-    setView('loading');
+    const url = `/trips?${buildQuery(activeFilters, null)}`;
+    const hit = cachedGet<FeedPage>(url);
+    if (hit) {
+      setTrips(hit.trips);
+      setNextCursor(hit.nextCursor);
+      setView(hit.trips.length ? 'ready' : 'empty');
+    } else {
+      setView('loading');
+    }
     try {
-      const { data } = await api.get<{ trips: Trip[]; nextCursor: string | null }>(`/trips?${buildQuery(activeFilters, null)}`);
+      const { data } = await api.get<FeedPage>(url);
       setTrips(data.trips);
       setNextCursor(data.nextCursor);
       setView(data.trips.length === 0 ? 'empty' : 'ready');
     } catch {
-      setView('error');
+      if (!hit) setView('error'); // keep showing cached trips if the refresh fails
     }
   };
 
   // Re-fetch whenever a filter changes, debounced so typing doesn't fire a request per keystroke.
+  // No debounce for the unfiltered feed (first load / cleared filters).
   useEffect(() => {
-    const t = window.setTimeout(() => fetchTrips(filters), 350);
+    const t = window.setTimeout(() => fetchTrips(filters), filters === EMPTY_FILTERS ? 0 : 350);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
@@ -574,7 +586,7 @@ export default function Home() {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const { data } = await api.get<{ trips: Trip[]; nextCursor: string | null }>(`/trips?${buildQuery(filters, nextCursor)}`);
+      const { data } = await api.get<FeedPage>(`/trips?${buildQuery(filters, nextCursor)}`);
       setTrips((prev) => [...prev, ...data.trips]);
       setNextCursor(data.nextCursor);
     } catch (error) {

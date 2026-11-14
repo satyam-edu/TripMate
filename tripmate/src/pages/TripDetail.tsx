@@ -12,7 +12,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import api, { apiErrorMessage } from '../services/api';
+import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
 
@@ -54,8 +54,9 @@ export default function TripDetail() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [view, setView] = useState<ViewState>('loading');
-  const [trip, setTrip] = useState<TripDetailData | null>(null);
+  const [cachedTrip] = useState(() => cachedGet<TripDetailData>(`/trips/${id}`));
+  const [view, setView] = useState<ViewState>(cachedTrip ? 'ready' : 'loading');
+  const [trip, setTrip] = useState<TripDetailData | null>(cachedTrip ?? null);
   const [reloadKey, setReloadKey] = useState(0);
 
   const [pitch, setPitch] = useState('');
@@ -76,7 +77,8 @@ export default function TripDetail() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setView(err?.response?.status === 404 ? 'notfound' : 'error');
+        // A failed refresh keeps the cached trip on screen; a 404 means it's really gone.
+        setView((v) => (err?.response?.status === 404 ? 'notfound' : v === 'ready' ? v : 'error'));
       });
     return () => {
       cancelled = true;

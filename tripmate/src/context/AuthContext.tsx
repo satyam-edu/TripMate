@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import api from '../services/api';
+import api, { clearGetCache } from '../services/api';
 import { closeSocket } from '../services/socket';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     closeSocket();
+    clearGetCache(); // don't show the previous user's data to the next one
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setToken(null);

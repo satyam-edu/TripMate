@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Send, ChevronLeft, MessageCircle, Reply, X, BellRing, BellOff, Smile } from 'lucide-react';
-import api, { apiErrorMessage } from '../services/api';
+import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useChatAlerts, type ChatPush } from '../context/ChatAlertsContext';
 import { getSocket } from '../services/socket';
@@ -197,9 +197,10 @@ export default function Chats() {
   const tab: ChatTab = searchParams.get('tab') === 'inquiries' ? 'inquiries' : 'groups';
   const activeId = searchParams.get('chatId');
 
-  const [view, setView] = useState<ViewState>('loading');
-  const [groups, setGroups] = useState<GroupChat[]>([]);
-  const [inquiries, setInquiries] = useState<InquiryChat[]>([]);
+  const [cached] = useState(() => cachedGet<{ groups: GroupChat[]; inquiries: InquiryChat[] }>('/chats'));
+  const [view, setView] = useState<ViewState>(cached ? 'ready' : 'loading');
+  const [groups, setGroups] = useState<GroupChat[]>(cached?.groups ?? []);
+  const [inquiries, setInquiries] = useState<InquiryChat[]>(cached?.inquiries ?? []);
 
   const [draft, setDraft] = useState('');
   const [sendError, setSendError] = useState<string | null>(null);
@@ -308,7 +309,7 @@ export default function Chats() {
       setView('ready');
     } catch (error) {
       console.error('[Chats] fetch failed', error);
-      setView('error');
+      setView((v) => (v === 'ready' ? v : 'error')); // keep showing cached chats
     }
   };
 

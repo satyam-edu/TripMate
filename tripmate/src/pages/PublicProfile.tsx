@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { BadgeCheck, Calendar, Compass, Flag, Link2, MapPin, MoreVertical, ShieldOff, Star, UserX, Wallet, X } from 'lucide-react';
-import api, { apiErrorMessage } from '../services/api';
+import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
 
@@ -83,7 +83,13 @@ export default function PublicProfile() {
   useEffect(() => {
     if (id === me?.id) return; // redirected below, to the editable version
     let cancelled = false;
-    setView('loading');
+    const hit = cachedGet<PublicUser>(`/users/${id}`);
+    if (hit) {
+      setProfile(hit);
+      setView('ready');
+    } else {
+      setView('loading');
+    }
     api
       .get<PublicUser>(`/users/${id}`)
       .then(({ data }) => {
@@ -93,7 +99,7 @@ export default function PublicProfile() {
         }
       })
       .catch((err) => {
-        if (!cancelled) setView(err?.response?.status === 404 ? 'notfound' : 'error');
+        if (!cancelled) setView(err?.response?.status === 404 ? 'notfound' : hit ? 'ready' : 'error');
       });
     return () => {
       cancelled = true;

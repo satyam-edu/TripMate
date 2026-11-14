@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import api from '../services/api';
 import { Home, PlusCircle, Inbox, MessageCircle, User, LogOut } from 'lucide-react';
 import { Avatar, cn } from './ui-bits';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +18,21 @@ const items: { to: string; label: string; icon: typeof Home; end?: boolean }[] =
 /* ── App shell: sidebar (desktop) + bottom nav (mobile) + routed content ─────── */
 export function AppShell() {
   const { user, logout } = useAuth();
+
+  // Warm the cache for the other sections (same urls the pages request), so their
+  // first open shows data straight away instead of a skeleton. Short delay lets the
+  // current page's own request go first.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId) return;
+    const t = window.setTimeout(() => {
+      for (const url of ['/requests/received', '/requests/sent', '/chats', '/trips/hosted', '/trips/joined', `/users/${userId}`]) {
+        api.get(url).catch(() => {}); // the page itself will show any error
+      }
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [userId]);
+
   return (
     <ChatAlertsProvider>
       <div className="min-h-screen bg-[#F8FAFC] flex">

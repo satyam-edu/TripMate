@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2, Star, Mail, Phone, Check } from 'lucide-react';
-import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
-import { firebaseAuth } from '../services/firebase';
+import type { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth';
+// Firebase is only needed for phone OTP, so it's fetched when that flow starts.
+const loadFirebase = () => import('../services/firebase');
 import type { AuthUser } from '../context/AuthContext';
-import api, { apiErrorMessage } from '../services/api';
+import api, { apiErrorMessage, cachedGet } from '../services/api';
 import type { Trip } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, Skeleton, tagColor, formatDateRange, formatBudget, cn, tripPath } from '../components/ui-bits';
@@ -78,6 +79,7 @@ function VerificationPanel({ user, onVerified }: { user: AuthUser; onVerified: (
     setBusy(true);
     setError('');
     try {
+      const { firebaseAuth, RecaptchaVerifier, signInWithPhoneNumber } = await loadFirebase();
       if (!recaptchaRef.current) {
         recaptchaRef.current = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', { size: 'invisible' });
       }
@@ -107,7 +109,7 @@ function VerificationPanel({ user, onVerified }: { user: AuthUser; onVerified: (
     try {
       const cred = await confirmation.confirm(code.trim());
       const idToken = await cred.user.getIdToken();
-      await firebaseAuth.signOut();
+      await (await loadFirebase()).firebaseAuth.signOut();
       const { data } = await api.post('/users/me/phone/verify', { idToken });
       onVerified(data);
       setPhoneOpen(false);
@@ -236,14 +238,19 @@ export default function Profile() {
     }
   };
 
-  const [hosted, setHosted] = useState<Trip[]>([]);
-  const [joined, setJoined] = useState<Trip[]>([]);
-  const [view, setView] = useState<ViewState>('loading');
-  const [reviews, setReviews] = useState<ProfileReview[]>([]);
-  const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [cached] = useState(() => ({
+    hosted: cachedGet<Trip[]>('/trips/hosted'),
+    joined: cachedGet<Trip[]>('/trips/joined'),
+    me: user ? cachedGet<{ reviews: ProfileReview[]; avgRating: number | null }>(`/users/${user.id}`) : undefined,
+  }));
+  const [hosted, setHosted] = useState<Trip[]>(cached.hosted ?? []);
+  const [joined, setJoined] = useState<Trip[]>(cached.joined ?? []);
+  const [view, setView] = useState<ViewState>(cached.hosted && cached.joined ? 'ready' : 'loading');
+  const [reviews, setReviews] = useState<ProfileReview[]>(cached.me?.reviews ?? []);
+  const [avgRating, setAvgRating] = useState<number | null>(cached.me?.avgRating ?? null);
 
   const fetchTrips = async () => {
-    setView('loading');
+    setView((v) => (v === 'ready' ? v : 'loading')); // cached trips stay up while refreshing
     try {
       const [hostedRes, joinedRes, meRes] = await Promise.all([
         api.get<Trip[]>('/trips/hosted'),
@@ -259,7 +266,7 @@ export default function Profile() {
       setView('ready');
     } catch (error) {
       console.error('[Profile] fetch failed', error);
-      setView('error');
+      setView((v) => (v === 'ready' ? v : 'error'));
     }
   };
 

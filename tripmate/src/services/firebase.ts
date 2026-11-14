@@ -1,5 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+// Loaded on demand (dynamic import) so Firebase stays out of the main bundle.
+export { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDa4JUdowCgB-FuoQAlxxcMHmVbTN92plw',

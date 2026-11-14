@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Inbox, MapPin, MessageCircle } from 'lucide-react';
-import api, { apiErrorMessage } from '../services/api';
+import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { Avatar, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
 
 /* ── Types (match backend payloads) ─────────────────────────────────────────── */
@@ -55,13 +55,15 @@ export default function Requests() {
   const tab: Tab = searchParams.get('tab') === 'sent' ? 'sent' : 'received';
   const setTab = (t: Tab) => setSearchParams({ tab: t });
 
-  const [view, setView] = useState<ViewState>('loading');
-  const [received, setReceived] = useState<ReceivedRequest[]>([]);
-  const [sent, setSent] = useState<SentRequest[]>([]);
+  const [cachedReceived] = useState(() => cachedGet<ReceivedRequest[]>('/requests/received'));
+  const [cachedSent] = useState(() => cachedGet<SentRequest[]>('/requests/sent'));
+  const [view, setView] = useState<ViewState>(cachedReceived && cachedSent ? 'ready' : 'loading');
+  const [received, setReceived] = useState<ReceivedRequest[]>(cachedReceived ?? []);
+  const [sent, setSent] = useState<SentRequest[]>(cachedSent ?? []);
   const [acting, setActing] = useState<Record<string, boolean>>({});
 
   const fetchAll = async () => {
-    setView('loading');
+    setView((v) => (v === 'ready' ? v : 'loading')); // cached data stays up while refreshing
     try {
       const [receivedRes, sentRes] = await Promise.all([
         api.get<ReceivedRequest[]>('/requests/received'),
@@ -72,7 +74,7 @@ export default function Requests() {
       setView('ready');
     } catch (error) {
       console.error('[Requests] fetch failed', error);
-      setView('error');
+      setView((v) => (v === 'ready' ? v : 'error'));
     }
   };
 

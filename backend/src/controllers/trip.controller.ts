@@ -208,10 +208,11 @@ export const getAllTrips = async (req: Request, res: Response): Promise<void> =>
     const hidden = userId ? await blockedUserIds(userId) : new Set<string>();
     const { q, category, minBudget, maxBudget, startDate, endDate, cursor } = req.query as Record<string, string | undefined>;
 
+    // My own trips + anyone I blocked / who blocked me (one filter: two `hostId` keys would overwrite each other).
+    const excludedHosts = userId ? [userId, ...hidden] : [...hidden];
     const where: Prisma.TripWhereInput = {
       startDate: { gte: new Date() },
-      ...(userId ? { hostId: { not: userId } } : {}),
-      ...(hidden.size > 0 ? { hostId: { notIn: [...hidden] } } : {}),
+      ...(excludedHosts.length > 0 ? { hostId: { notIn: excludedHosts } } : {}),
     };
 
     if (q && q.trim()) {

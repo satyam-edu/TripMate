@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Calendar, Wallet, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2, Star, Mail, Phone, Check } from 'lucide-react';
+import { MapPin, Users, Compass, BadgeCheck, Link2, Pencil, X, LogOut, Trash2, Camera, Loader2, Star, Mail, Phone, Check } from 'lucide-react';
 import type { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth';
 // Firebase is only needed for phone OTP, so it's fetched when that flow starts.
 const loadFirebase = () => import('../services/firebase');
@@ -8,7 +8,7 @@ import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
 import type { Trip } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, CoverImg, Skeleton, TAG_STYLE, formatDateRange, formatBudget, cn, tripPath } from '../components/ui-bits';
+import { Avatar, CoverImg, TripMeta, TEXT_STRONG, CARD_FRAME, CARD_IMG, Skeleton, TAG_STYLE, UnderlineTabs, BTN_OUTLINE, H2, cn, tripPath } from '../components/ui-bits';
 
 const COVER = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&h=400&fit=crop&auto=format';
 
@@ -129,17 +129,17 @@ function VerificationPanel({ user, onVerified }: { user: AuthUser; onVerified: (
     { key: 'phone', label: 'Phone number verified', done: user.phoneVerified, icon: Phone },  ];
 
   return (
-    <div className="mt-5 bg-blue-50/60 border border-blue-100 rounded-2xl p-4">
-      <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+    <div className="mt-6 border border-[#DDDDDD] rounded-2xl p-5">
+      <p className="text-base font-semibold text-[#222222] flex items-center gap-1.5">
         <BadgeCheck size={16} className="text-blue-600" /> Get the blue tick
       </p>
-      <p className="text-xs text-slate-500 mt-0.5">Complete both to show other travellers your account is genuine.</p>
+      <p className="text-sm text-[#6A6A6A] mt-0.5">Complete both to show other travellers your account is genuine.</p>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 divide-y divide-[#DDDDDD]">
         {steps.map((s) => (
-          <div key={s.key} className="flex items-center justify-between gap-3 bg-white rounded-xl px-3 py-2 border border-slate-100">
-            <span className="flex items-center gap-2 text-sm text-slate-700">
-              <s.icon size={15} className="text-slate-400" /> {s.label}
+          <div key={s.key} className="flex items-center justify-between gap-3 py-3">
+            <span className="flex items-center gap-2 text-sm text-[#222222]">
+              <s.icon size={16} className="text-[#6A6A6A]" /> {s.label}
             </span>
             {s.done ? (
               <span className="flex items-center gap-1 text-emerald-600 text-xs font-semibold">
@@ -148,7 +148,7 @@ function VerificationPanel({ user, onVerified }: { user: AuthUser; onVerified: (
             ) : s.key === 'phone' ? (
               <button
                 onClick={() => setPhoneOpen((v) => !v)}
-                className="text-xs font-semibold text-blue-600 hover:underline"
+                className="text-sm font-semibold text-[#222222] underline underline-offset-4"
               >
                 Verify
               </button>
@@ -158,14 +158,14 @@ function VerificationPanel({ user, onVerified }: { user: AuthUser; onVerified: (
       </div>
 
       {phoneOpen && (
-        <div className="mt-3 bg-white rounded-xl border border-slate-100 p-3 space-y-2">
+        <div className="mt-3 border-t border-[#DDDDDD] pt-4 space-y-2">
           {!confirmation ? (
             <>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 98765 43210"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
+                className="w-full border border-[#DDDDDD] rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
               />
               <button
                 onClick={sendCode}
@@ -181,7 +181,7 @@ function VerificationPanel({ user, onVerified }: { user: AuthUser; onVerified: (
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="Enter 6-digit code"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
+                className="w-full border border-[#DDDDDD] rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
               />
               <button
                 onClick={verifyCode}
@@ -303,7 +303,7 @@ export default function Profile() {
     <div className="pb-28 lg:pb-10 max-w-4xl mx-auto">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="relative">
-        <div className="h-40 sm:h-52 rounded-3xl overflow-hidden bg-slate-100">
+        <div className="h-40 sm:h-52 rounded-2xl overflow-hidden bg-slate-100">
           <img src={user?.coverImage || COVER} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="absolute -bottom-8 left-5">
@@ -315,22 +315,22 @@ export default function Profile() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight truncate">{name}</h1>
+              <h1 className="text-[26px] font-semibold leading-tight text-[#222222] truncate">{name}</h1>
               {user?.verified && (
                 <span title="Verified account" className="text-blue-600 shrink-0">
                   <BadgeCheck size={20} />
                 </span>
               )}
             </div>
-            <p className="text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
+            <p className="text-[#6A6A6A] flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
               {avgRating !== null && (
-                <span className="flex items-center gap-1 font-semibold text-slate-700">
-                  <Star size={14} className="text-amber-400" fill="currentColor" />
-                  {avgRating} <span className="text-slate-400 font-normal">({reviews.length})</span>
+                <span className="flex items-center gap-1 font-semibold text-[#222222]">
+                  <Star size={14} fill="currentColor" />
+                  {avgRating} <span className="text-[#6A6A6A] font-normal">({reviews.length})</span>
                 </span>
               )}
               <span className="flex items-center gap-1">
-                <MapPin size={14} className="text-slate-400" /> {user?.location ?? 'Traveler'}
+                <MapPin size={14} /> {user?.location ?? 'Traveler'}
               </span>
             </p>
           </div>
@@ -338,7 +338,7 @@ export default function Profile() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={openEdit}
-              className="flex items-center gap-2 border border-blue-200 text-blue-600 rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-blue-50 transition-colors"
+              className={cn(BTN_OUTLINE, "gap-2 px-5 py-2.5")}
             >
               <Pencil size={15} /> Edit Profile
             </button>
@@ -347,14 +347,14 @@ export default function Profile() {
               onClick={handleLogout}
               title="Sign out"
               aria-label="Sign out"
-              className="flex lg:hidden items-center justify-center w-10 h-10 border border-slate-200 text-slate-500 rounded-full hover:border-red-500 hover:text-red-500 transition-colors"
+              className="flex lg:hidden items-center justify-center w-10 h-10 border border-[#222222] text-[#222222] rounded-full hover:bg-slate-50 transition-colors"
             >
               <LogOut size={16} />
             </button>
           </div>
         </div>
 
-        <p className="text-slate-600 text-sm mt-4 leading-relaxed">
+        <p className="text-[#222222] text-base mt-5 leading-relaxed">
           {user?.bio ?? 'Adventurer at heart, here to find a travel tribe and explore India together.'}
         </p>
 
@@ -364,15 +364,15 @@ export default function Profile() {
             href={normalizeUrl(social)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 mt-3 text-sm font-semibold text-slate-700 border border-slate-200 rounded-full px-3.5 py-1.5 hover:border-blue-600 hover:text-blue-600 transition-colors"
+            className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-[#222222] underline underline-offset-4"
           >
             <SocialIcon url={social} size={16} /> {socialLabel(social)}
           </a>
         )}
 
-        <div className="flex flex-wrap gap-2 mt-4">
+        <div className="flex flex-wrap gap-2 mt-5">
           {vibes.map((v) => (
-            <span key={v} className="px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[13px] font-semibold">
+            <span key={v} className="px-3 py-1.5 rounded-full border border-[#DDDDDD] text-[#222222] text-[13px] font-medium">
               {v}
             </span>
           ))}
@@ -383,26 +383,26 @@ export default function Profile() {
 
       {/* ── Reviews about you ───────────────────────────────────────────────── */}
       {reviews.length > 0 && (
-        <div className="mt-8 px-1">
-          <h2 className="text-slate-900 font-bold text-lg mb-4">
-            Reviews about you <span className="ml-1.5 text-slate-400 font-semibold">{reviews.length}</span>
+        <div className="mt-10 px-1">
+          <h2 className={cn(H2, 'mb-2')}>
+            Reviews about you <span className="ml-1 text-[#6A6A6A] font-normal">· {reviews.length}</span>
           </h2>
-          <div className="space-y-3">
+          <div className="divide-y divide-[#DDDDDD]">
             {reviews.map((r) => (
-              <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+              <div key={r.id} className="py-5">
                 <div className="flex items-center gap-3">
                   <Avatar src={r.reviewer.avatar} name={r.reviewer.name} size={36} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-slate-900 font-semibold text-sm truncate">{r.reviewer.name}</p>
-                    <p className="text-slate-400 text-xs truncate">{r.trip.destination}</p>
+                    <p className="text-[#222222] font-semibold text-sm truncate">{r.reviewer.name}</p>
+                    <p className="text-[#6A6A6A] text-xs truncate">{r.trip.destination}</p>
                   </div>
-                  <div className="flex gap-0.5 shrink-0 text-amber-400">
+                  <div className="flex gap-0.5 shrink-0 text-[#222222]">
                     {Array.from({ length: 5 }, (_, i) => (
                       <Star key={i} size={13} fill={i < r.rating ? 'currentColor' : 'none'} strokeWidth={1.75} />
                     ))}
                   </div>
                 </div>
-                {r.text && <p className="text-slate-600 text-sm mt-2 leading-relaxed">{r.text}</p>}
+                {r.text && <p className="text-[#222222] text-sm mt-2 leading-relaxed">{r.text}</p>}
               </div>
             ))}
           </div>
@@ -410,32 +410,21 @@ export default function Profile() {
       )}
 
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
-      <div className="mt-8 px-1">
-        <div className="inline-flex bg-slate-100 rounded-full p-1">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                'rounded-full px-5 py-2 text-sm font-semibold transition-colors',
-                tab === t.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500',
-              )}
-            >
-              {t.label}
-              {view === 'ready' && <span className="ml-1.5 opacity-70">{t.count}</span>}
-            </button>
-          ))}
-        </div>
+      <div className="mt-10 px-1">
+        <UnderlineTabs
+          tabs={TABS.map((t) => ({ value: t.id, label: t.label, badge: view === 'ready' ? t.count : undefined }))}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
 
       {/* ── Content ─────────────────────────────────────────────────────────── */}
-      <div className="mt-5 px-1">
+      <div className="mt-8 px-1">
         {view === 'loading' && <TripGridSkeleton />}
 
         {view === 'error' && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center">
-            <p className="text-slate-900 font-semibold">Couldn't load your trips.</p>
+          <div className="py-12 text-center">
+            <p className="text-[#222222] font-semibold">Couldn't load your trips.</p>
             <button
               onClick={fetchTrips}
               className="mt-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2.5 text-sm font-semibold transition-colors"
@@ -449,7 +438,7 @@ export default function Profile() {
           (list.length === 0 ? (
             <EmptyState tab={tab} onCta={() => navigate(tab === 'hosted' ? '/post' : '/')} />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
               {list.map((trip) => (
                 <ProfileTripCard
                   key={trip.id}
@@ -607,8 +596,8 @@ function EditProfileModal({
       <div className="absolute inset-0 bg-slate-950/50" onClick={onClose} />
       <div className="relative w-full max-w-md max-h-[88vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-extrabold text-slate-900">Edit Profile</h2>
-          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className="text-xl font-semibold text-[#222222]">Edit Profile</h2>
+          <button onClick={onClose} aria-label="Close" className="text-[#6A6A6A] hover:text-[#6A6A6A] transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -695,7 +684,7 @@ function EditProfileModal({
                   type="button"
                   onClick={() => void removePhoto('avatar')}
                   disabled={photoBusy !== null}
-                  className="text-slate-400 hover:text-red-500 disabled:opacity-60"
+                  className="text-[#6A6A6A] hover:text-red-500 disabled:opacity-60"
                 >
                   Remove
                 </button>
@@ -704,48 +693,48 @@ function EditProfileModal({
           </div>
         </div>
         {photoError && <p className="text-red-500 text-sm mt-2">{photoError}</p>}
-        <p className="text-xs text-slate-400 mt-2 mb-1">Photos update right away.</p>
+        <p className="text-xs text-[#6A6A6A] mt-2 mb-1">Photos update right away.</p>
 
         {/* Location */}
-        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Location</label>
+        <label className="block text-sm font-semibold text-[#222222] mb-1.5">Location</label>
         <input
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           placeholder="e.g. Delhi, India"
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 transition-colors"
+          className="w-full bg-slate-50 border border-[#DDDDDD] rounded-xl px-4 py-3 text-sm text-[#222222] placeholder:text-[#6A6A6A] outline-none focus:border-blue-600 transition-colors"
         />
 
         {/* Bio */}
-        <label className="block text-sm font-semibold text-slate-700 mt-4 mb-1.5">Bio</label>
+        <label className="block text-sm font-semibold text-[#222222] mt-4 mb-1.5">Bio</label>
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           rows={3}
           maxLength={280}
           placeholder="Tell fellow travelers a little about you…"
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 resize-none transition-colors"
+          className="w-full bg-slate-50 border border-[#DDDDDD] rounded-xl px-4 py-3 text-sm text-[#222222] placeholder:text-[#6A6A6A] outline-none focus:border-blue-600 resize-none transition-colors"
         />
-        <p className="text-right text-xs text-slate-400 mt-1">{bio.length}/280</p>
+        <p className="text-right text-xs text-[#6A6A6A] mt-1">{bio.length}/280</p>
 
         {/* Social handle */}
-        <label className="block text-sm font-semibold text-slate-700 mt-2 mb-1.5">
-          Instagram / LinkedIn <span className="font-normal text-slate-400">(builds trust)</span>
+        <label className="block text-sm font-semibold text-[#222222] mt-2 mb-1.5">
+          Instagram / LinkedIn <span className="font-normal text-[#6A6A6A]">(builds trust)</span>
         </label>
         <input
           value={social}
           onChange={(e) => setSocial(e.target.value)}
           placeholder="instagram.com/yourhandle"
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 transition-colors"
+          className="w-full bg-slate-50 border border-[#DDDDDD] rounded-xl px-4 py-3 text-sm text-[#222222] placeholder:text-[#6A6A6A] outline-none focus:border-blue-600 transition-colors"
         />
 
         {/* Gender (used only to unlock hosting/joining women-only trips) */}
-        <label className="block text-sm font-semibold text-slate-700 mt-4 mb-1.5">
-          Gender <span className="font-normal text-slate-400">(only used for women-only trips)</span>
+        <label className="block text-sm font-semibold text-[#222222] mt-4 mb-1.5">
+          Gender <span className="font-normal text-[#6A6A6A]">(only used for women-only trips)</span>
         </label>
         <select
           value={gender}
           onChange={(e) => setGender(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-600 transition-colors"
+          className="w-full bg-slate-50 border border-[#DDDDDD] rounded-xl px-4 py-3 text-sm text-[#222222] outline-none focus:border-blue-600 transition-colors"
         >
           <option value="">Prefer not to say</option>
           <option value="Woman">Woman</option>
@@ -753,7 +742,7 @@ function EditProfileModal({
         </select>
 
         {/* Vibes */}
-        <label className="block text-sm font-semibold text-slate-700 mt-4 mb-2">Travel vibes</label>
+        <label className="block text-sm font-semibold text-[#222222] mt-4 mb-2">Travel vibes</label>
         <div className="flex flex-wrap gap-2">
           {VIBE_OPTIONS.map((v) => {
             const on = vibes.includes(v);
@@ -764,7 +753,7 @@ function EditProfileModal({
                 onClick={() => toggleVibe(v)}
                 className={cn(
                   'rounded-full px-3.5 py-1.5 text-[13px] font-semibold border transition-colors',
-                  on ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-600',
+                  on ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-[#DDDDDD] text-[#6A6A6A] hover:border-blue-600',
                 )}
               >
                 {v}
@@ -781,7 +770,7 @@ function EditProfileModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-5 py-2.5 rounded-full border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
+            className="px-5 py-2.5 rounded-full border border-[#DDDDDD] text-[#6A6A6A] text-sm font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
           >
             Cancel
           </button>
@@ -824,25 +813,25 @@ function ProfileTripCard({
   const spotsFilled = (trip._count?.requests ?? 0) + 1;
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_8px_40px_rgba(37,99,235,0.25)] hover:border-blue-400/50 transition-[box-shadow,border-color] duration-300">
+    <div className="relative">
       <div className="relative">
-        <Link to={tripPath(trip)} className="block aspect-[16/10] bg-slate-100" tabIndex={-1} aria-hidden="true">
-          <CoverImg src={trip.coverImage} size={500} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+        <Link to={tripPath(trip)} className={CARD_FRAME} tabIndex={-1} aria-hidden="true">
+          <CoverImg src={trip.coverImage} size={500} alt="" className={CARD_IMG} loading="lazy" decoding="async" />
         </Link>
         {tag && (
           <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', TAG_STYLE)}>
             {tag}
           </span>
         )}
-        <span className="absolute top-3 right-3 bg-white/95 text-slate-900 rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold">
-          <Users size={12} className="text-blue-600" />
+        <span className="absolute top-3 right-3 bg-white/95 text-[#222222] rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold">
+          <Users size={12} />
           {spotsFilled}/{trip.maxGuests}
         </span>
       </div>
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <div className="flex items-start gap-1.5 text-slate-900 min-w-0">
-            <Link to={tripPath(trip)} className="text-[17px] leading-snug font-bold line-clamp-2 break-words hover:text-blue-600 transition-colors">
+      <div className="pt-3">
+        <div className="flex items-start justify-between gap-2 mb-0.5">
+          <div className="flex items-start gap-1.5 min-w-0">
+            <Link to={tripPath(trip)} className={cn('text-base leading-snug font-semibold line-clamp-2 break-words', TEXT_STRONG, "after:absolute after:inset-0 after:content-['']")}>
               {trip.destination}
             </Link>
           </div>
@@ -855,19 +844,11 @@ function ProfileTripCard({
             {kind === 'hosted' ? 'Hosting' : 'Joined'}
           </span>
         </div>
-        <p className="text-slate-400 text-[13px] mb-3">{trip.country}</p>
-        <div className="flex items-center gap-4 text-slate-500 text-[13px]">
-          <span className="flex items-center gap-1.5">
-            <Calendar size={14} /> {formatDateRange(trip.startDate, trip.endDate)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Wallet size={14} /> {formatBudget(trip.budget)}
-          </span>
-        </div>
+        <TripMeta trip={trip} />
         {kind === 'hosted' && !!trip.pendingCount && (
           <Link
             to="/requests"
-            className="flex items-center gap-1.5 mt-3 rounded-full bg-amber-50 text-amber-600 px-3 py-1.5 text-[13px] font-semibold w-fit hover:bg-amber-100 transition-colors"
+            className="relative z-10 flex items-center gap-1.5 mt-3 rounded-full bg-amber-50 text-amber-600 px-3 py-1.5 text-[13px] font-semibold w-fit hover:bg-amber-100 transition-colors"
           >
             <Users size={13} /> {trip.pendingCount} {trip.pendingCount === 1 ? 'person' : 'people'} waiting
           </Link>
@@ -877,14 +858,14 @@ function ProfileTripCard({
             <button
               type="button"
               onClick={onEdit}
-              className="flex items-center gap-1.5 border border-slate-200 text-slate-600 rounded-full px-4 py-1.5 text-[13px] font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
+              className="relative z-10 flex items-center gap-1.5 border border-[#DDDDDD] text-[#6A6A6A] rounded-full px-4 py-1.5 text-[13px] font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
             >
               <Pencil size={13} /> Edit
             </button>
             <button
               type="button"
               onClick={onDelete}
-              className="flex items-center gap-1.5 border border-slate-200 text-slate-600 rounded-full px-4 py-1.5 text-[13px] font-semibold hover:border-red-500 hover:text-red-500 transition-colors"
+              className="relative z-10 flex items-center gap-1.5 border border-[#DDDDDD] text-[#6A6A6A] rounded-full px-4 py-1.5 text-[13px] font-semibold hover:border-red-500 hover:text-red-500 transition-colors"
             >
               <Trash2 size={13} /> Delete
             </button>
@@ -952,16 +933,16 @@ function EditTripModal({
   };
 
   const input =
-    'w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 transition-colors';
-  const label = 'block text-sm font-semibold text-slate-700 mt-4 mb-1.5';
+    'w-full bg-slate-50 border border-[#DDDDDD] rounded-xl px-4 py-3 text-sm text-[#222222] placeholder:text-[#6A6A6A] outline-none focus:border-blue-600 transition-colors';
+  const label = 'block text-sm font-semibold text-[#222222] mt-4 mb-1.5';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/50" onClick={onClose} />
       <div className="relative w-full max-w-md max-h-[88vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-xl font-extrabold text-slate-900">Edit Trip</h2>
-          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className="text-xl font-semibold text-[#222222]">Edit Trip</h2>
+          <button onClick={onClose} aria-label="Close" className="text-[#6A6A6A] hover:text-[#6A6A6A] transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -1004,7 +985,7 @@ function EditTripModal({
         />
 
         {user?.gender === 'Woman' && (
-          <label className="flex items-center gap-2 mt-4 text-sm font-semibold text-slate-700 cursor-pointer">
+          <label className="flex items-center gap-2 mt-4 text-sm font-semibold text-[#222222] cursor-pointer">
             <input type="checkbox" checked={womenOnly} onChange={(e) => setWomenOnly(e.target.checked)} className="accent-blue-600" />
             Women-only trip
           </label>
@@ -1017,7 +998,7 @@ function EditTripModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-5 py-2.5 rounded-full border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
+            className="px-5 py-2.5 rounded-full border border-[#DDDDDD] text-[#6A6A6A] text-sm font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
           >
             Cancel
           </button>
@@ -1042,12 +1023,12 @@ function EmptyState({ tab, onCta }: { tab: ProfileTab; onCta: () => void }) {
       ? { title: "You aren't hosting any trips yet.", sub: 'Plan a trip and gather your travel tribe.', cta: 'Post a trip' }
       : { title: "You haven't joined any trips yet.", sub: 'Find a group heading where you want to go.', cta: 'Explore trips' };
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center flex flex-col items-center">
-      <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-4">
+    <div className="py-12 text-center flex flex-col items-center">
+      <div className="w-16 h-16 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#222222] mb-4">
         <Compass size={30} />
       </div>
-      <h3 className="text-slate-900 font-bold">{copy.title}</h3>
-      <p className="text-slate-500 text-sm mt-1 max-w-xs">{copy.sub}</p>
+      <h3 className="text-[#222222] text-xl font-semibold">{copy.title}</h3>
+      <p className="text-[#6A6A6A] text-sm mt-1 max-w-xs">{copy.sub}</p>
       <button
         onClick={onCta}
         className="mt-5 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2.5 text-sm font-semibold transition-colors"
@@ -1061,11 +1042,11 @@ function EmptyState({ tab, onCta }: { tab: ProfileTab; onCta: () => void }) {
 /* ── Skeleton ───────────────────────────────────────────────────────────────── */
 function TripGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-3xl border border-slate-200 overflow-hidden">
-          <Skeleton className="aspect-[16/10] rounded-none" />
-          <div className="p-4 space-y-3">
+        <div key={i}>
+          <Skeleton className="aspect-[16/10] rounded-2xl" />
+          <div className="pt-3 space-y-2">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-3 w-20" />
             <Skeleton className="h-3 w-40" />

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import api, { apiErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, TAG_STYLE, formatDateRange, formatBudget } from '../components/ui-bits';
+import { PAGE_TITLE, Avatar, TAG_STYLE, formatDateRange, formatBudget } from '../components/ui-bits';
 
 /* ── Types & constants ──────────────────────────────────────────────────────── */
 type Category = 'Mountains' | 'Beaches' | 'Culture' | 'Adventure' | 'Wildlife' | 'Road Trip';
@@ -119,9 +119,9 @@ export default function PostTab() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
         <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mb-6 text-3xl">🎉</div>
-        <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Trip Published!</h2>
-        <p className="text-slate-500 max-w-xs leading-relaxed mb-8">
-          Your trip to <span className="text-slate-900 font-semibold">{destination}</span> is now live.
+        <h2 className="text-2xl font-semibold text-[#222222] mb-2">Trip Published!</h2>
+        <p className="text-[#6A6A6A] max-w-xs leading-relaxed mb-8">
+          Your trip to <span className="text-[#222222] font-semibold">{destination}</span> is now live.
         </p>
         <div className="flex gap-3">
           <button
@@ -132,7 +132,7 @@ export default function PostTab() {
           </button>
           <button
             onClick={() => navigate('/')}
-            className="border border-slate-200 text-slate-900 rounded-full px-6 py-2.5 text-sm font-semibold hover:bg-slate-50 transition-colors"
+            className="border border-[#DDDDDD] text-[#222222] rounded-full px-6 py-2.5 text-sm font-semibold hover:bg-slate-50 transition-colors"
           >
             Back to home
           </button>
@@ -156,16 +156,16 @@ export default function PostTab() {
   return (
     <div className="pb-28 lg:pb-10">
       {/* Header: floats directly on the page background (no card) */}
-      <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-1">Post a Trip</h1>
-      <p className="text-slate-500 mb-6 text-[15px]">Plan your route and gather companions to join you.</p>
+      <h1 className={PAGE_TITLE}>Post a trip</h1>
+      <p className="text-[#6A6A6A] mt-1 mb-8 text-base">Plan your route and gather companions to join you.</p>
 
       {/* Segmented progress bar */}
       <div className="flex items-center gap-2 mb-8">
         {STEP_LABELS.map((label, i) => (
           <div key={label} className="flex-1">
             <div className="flex flex-col items-center gap-1.5 w-full">
-              <div className={`h-1.5 w-full rounded-full transition-colors ${i <= step ? 'bg-blue-600' : 'bg-slate-200'}`} />
-              <span className={`hidden sm:block text-xs font-semibold ${i <= step ? 'text-blue-600' : 'text-slate-400'}`}>
+              <div className={`h-1.5 w-full rounded-full transition-colors ${i <= step ? 'bg-[#222222]' : 'bg-[#DDDDDD]'}`} />
+              <span className={`hidden sm:block text-xs font-semibold ${i <= step ? 'text-[#222222]' : 'text-[#6A6A6A]'}`}>
                 {label}
               </span>
             </div>
@@ -175,8 +175,8 @@ export default function PostTab() {
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
         {/* ── Form card ───────────────────────────────────────────────────────── */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)]">
-          <p className="text-sm font-semibold text-slate-400 mb-5">
+        <div>
+          <p className="text-sm font-semibold text-[#6A6A6A] mb-5">
             STEP {step + 1} OF 4 · {STEP_LABELS[step]}
           </p>
 
@@ -188,15 +188,15 @@ export default function PostTab() {
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 placeholder="e.g. Spiti Valley"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 outline-none focus:border-blue-600 text-slate-900 mb-3"
+                className="w-full bg-white border border-[#B0B0B0] rounded-xl px-4 py-3.5 outline-none focus:border-[#222222] focus:ring-1 focus:ring-[#222222] text-[#222222] mb-3"
               />
               <input
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 placeholder="Region / State"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 outline-none focus:border-blue-600 text-slate-900 mb-5"
+                className="w-full bg-white border border-[#B0B0B0] rounded-xl px-4 py-3.5 outline-none focus:border-[#222222] focus:ring-1 focus:ring-[#222222] text-[#222222] mb-5"
               />
-              <p className="text-sm font-semibold text-slate-500 mb-3">Popular right now</p>
+              <p className="text-sm font-semibold text-[#6A6A6A] mb-3">Popular right now</p>
               <div className="flex flex-wrap gap-2">
                 {SUGGESTIONS.map((s) => (
                   <button
@@ -205,8 +205,8 @@ export default function PostTab() {
                     onClick={() => setDestination(s)}
                     className={`rounded-full px-4 py-2 border text-sm font-semibold transition-colors ${
                       destination === s
-                        ? 'bg-blue-50 border-blue-600 text-blue-600'
-                        : 'border-slate-200 text-slate-500 hover:border-blue-600'
+                        ? 'bg-[#F7F7F7] border-[#222222] text-[#222222]'
+                        : 'border-[#DDDDDD] text-[#222222] hover:border-[#222222]'
                     }`}
                   >
                     {s}
@@ -235,16 +235,16 @@ export default function PostTab() {
           {step === 2 && (
             <div>
               <Label icon={<Users size={18} />} required>How many travelers?</Label>
-              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 mb-6">
-                <span className="text-slate-900 font-semibold text-[15px]">Group size</span>
+              <div className="flex items-center justify-between bg-white border border-[#DDDDDD] rounded-xl px-5 py-4 mb-6">
+                <span className="text-[#222222] font-semibold text-[15px]">Group size</span>
                 <Counter value={group} setValue={setGroup} min={2} max={12} />
               </div>
 
               <Label icon={<Wallet size={18} />} required>Estimated budget per person</Label>
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4">
+              <div className="bg-white border border-[#DDDDDD] rounded-xl px-5 py-4">
                 <div className="flex items-baseline justify-between mb-3">
-                  <span className="text-2xl font-extrabold text-slate-900">₹{budget.toLocaleString('en-IN')}</span>
-                  <span className="text-slate-400 text-[13px]">per person</span>
+                  <span className="text-2xl font-semibold text-[#222222]">₹{budget.toLocaleString('en-IN')}</span>
+                  <span className="text-[#6A6A6A] text-[13px]">per person</span>
                 </div>
                 <input
                   type="range"
@@ -253,9 +253,9 @@ export default function PostTab() {
                   step={500}
                   value={budget}
                   onChange={(e) => setBudget(Number(e.target.value))}
-                  className="w-full accent-blue-600"
+                  className="w-full accent-[#222222]"
                 />
-                <div className="flex justify-between text-slate-400 text-xs mt-1">
+                <div className="flex justify-between text-[#6A6A6A] text-xs mt-1">
                   <span>₹5,000</span>
                   <span>₹50,000</span>
                 </div>
@@ -277,7 +277,7 @@ export default function PostTab() {
                       type="button"
                       onClick={() => toggleVibe(v.label)}
                       className={`flex flex-col items-center gap-2 rounded-2xl border py-4 transition-colors ${
-                        on ? 'bg-blue-50 border-blue-600 text-blue-600' : 'border-slate-200 text-slate-500 hover:border-blue-600'
+                        on ? 'bg-[#F7F7F7] border-[#222222] text-[#222222]' : 'border-[#DDDDDD] text-[#222222] hover:border-[#222222]'
                       }`}
                     >
                       <Icon size={22} />
@@ -295,7 +295,7 @@ export default function PostTab() {
                     type="button"
                     onClick={() => setTag(c)}
                     className={`rounded-full px-4 py-2 border text-sm font-semibold transition-colors ${
-                      tag === c ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 text-slate-500 hover:border-blue-600'
+                      tag === c ? 'bg-[#222222] border-[#222222] text-white' : 'border-[#DDDDDD] text-[#222222] hover:border-[#222222]'
                     }`}
                   >
                     {c}
@@ -304,12 +304,12 @@ export default function PostTab() {
               </div>
 
               {user?.gender === 'Woman' && (
-                <label className="flex items-center gap-2 mt-6 text-sm font-semibold text-slate-700 cursor-pointer">
+                <label className="flex items-center gap-2 mt-6 text-sm font-semibold text-[#222222] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={womenOnly}
                     onChange={(e) => setWomenOnly(e.target.checked)}
-                    className="accent-blue-600"
+                    className="accent-[#222222]"
                   />
                   Women-only trip
                 </label>
@@ -323,7 +323,7 @@ export default function PostTab() {
               type="button"
               onClick={() => goToStep(step - 1)}
               disabled={step === 0}
-              className="flex items-center gap-1 text-sm font-semibold text-slate-500 disabled:opacity-40 hover:text-slate-900 transition-colors"
+              className="flex items-center gap-1 text-sm font-semibold text-[#6A6A6A] disabled:opacity-40 hover:text-[#222222] transition-colors"
             >
               <ChevronLeft size={18} /> Back
             </button>
@@ -353,10 +353,10 @@ export default function PostTab() {
 
         {/* ── Live preview (sticky desktop, stacks below on mobile) ───────────── */}
         <div className="lg:sticky lg:top-6">
-          <p className="text-sm font-semibold text-slate-400 mb-3">LIVE PREVIEW</p>
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)]">
+          <p className="text-sm font-semibold text-[#6A6A6A] mb-3">LIVE PREVIEW</p>
+          <div>
             <div className="relative">
-              <div className="aspect-[16/10] bg-slate-100">
+              <div className="aspect-[16/10] overflow-hidden rounded-2xl bg-slate-100">
                 <img src={PREVIEW_COVER} alt="" className="w-full h-full object-cover" />
               </div>
               <span
@@ -364,31 +364,25 @@ export default function PostTab() {
               >
                 {tag}
               </span>
-              <span className="absolute top-3 right-3 bg-white/95 text-slate-900 rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold">
-                <Users size={12} className="text-blue-600" />
+              <span className="absolute top-3 right-3 bg-white/95 text-[#222222] rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold">
+                <Users size={12} />
                 1/{group}
               </span>
             </div>
-            <div className="p-4">
-              <div className="flex items-center gap-1.5 text-slate-900 mb-1">
-                <MapPin size={16} className="text-blue-600 shrink-0" />
-                <span className="text-[17px] font-bold truncate">{destination || 'Your destination'}</span>
-              </div>
-              <p className="text-slate-400 mb-3 text-[13px]">{region || 'Region'}</p>
-              <div className="flex items-center gap-4 text-slate-500 mb-4 text-[13px]">
-                <span className="flex items-center gap-1.5">
-                  <Calendar size={14} /> {previewDates || 'Pick dates'}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Wallet size={14} /> {formatBudget(budget)}
-                </span>
+            <div className="pt-3">
+              <p className="text-base font-semibold leading-snug mb-0.5 truncate text-[#222222]">{destination || 'Your destination'}</p>
+              <div className="mb-3 text-sm leading-snug text-[#6A6A6A]">
+                <p>
+                  {region || 'Region'} · {previewDates || 'Pick dates'}
+                </p>
+                <p className="mt-0.5 font-semibold text-[#222222]">{formatBudget(budget)}</p>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <Avatar src={user?.avatar ?? null} name={user?.name ?? 'You'} size={28} />
-                  <span className="text-slate-500 truncate text-[13px]">
+                  <span className="text-[#6A6A6A] truncate text-sm">
                     Hosted by{' '}
-                    <span className="text-slate-900 font-semibold">{(user?.name ?? 'You').split(' ')[0]}</span>
+                    <span className="text-[#222222] font-semibold">{(user?.name ?? 'You').split(' ')[0]}</span>
                   </span>
                 </div>
                 <span className="shrink-0 bg-blue-600 text-white rounded-full px-5 py-2 text-sm font-semibold">Join</span>
@@ -404,8 +398,8 @@ export default function PostTab() {
 /* ── Step heading label (prominent, per V2) ─────────────────────────────────── */
 function Label({ icon, children, required }: { icon: React.ReactNode; children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="flex items-center gap-2 text-slate-900 mb-3 text-xl font-semibold">
-      <span className="text-blue-600">{icon}</span>
+    <label className="flex items-center gap-2 text-[#222222] mb-3 text-xl font-semibold">
+      <span className="text-[#222222]">{icon}</span>
       {children}
       {required && <span className="text-red-500">*</span>}
     </label>
@@ -419,15 +413,15 @@ function Counter({ value, setValue, min, max }: { value: number; setValue: (n: n
       <button
         type="button"
         onClick={() => setValue(Math.max(min, value - 1))}
-        className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:border-blue-600 hover:text-blue-600 transition-colors"
+        className="w-9 h-9 rounded-full border border-[#B0B0B0] flex items-center justify-center text-[#222222] hover:border-[#222222] transition-colors"
       >
         <Minus size={16} />
       </button>
-      <span className="text-slate-900 w-6 text-center text-lg font-bold">{value}</span>
+      <span className="text-[#222222] w-6 text-center text-lg font-semibold">{value}</span>
       <button
         type="button"
         onClick={() => setValue(Math.min(max, value + 1))}
-        className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white hover:bg-blue-700 transition-colors"
+        className="w-9 h-9 rounded-full bg-[#222222] flex items-center justify-center text-white hover:bg-black transition-colors"
       >
         <Plus size={16} />
       </button>
@@ -489,14 +483,14 @@ function CalendarPicker({ start, end, onSelect }: { start: string; end: string; 
 
   return (
     <>
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+      <div className="bg-slate-50 border border-[#DDDDDD] rounded-2xl p-4">
         <div className="flex items-center justify-between mb-4 px-1">
-          <span className="text-slate-900 font-bold text-[15px]">{monthLabel}</span>
+          <span className="text-[#222222] font-semibold text-[15px]">{monthLabel}</span>
           <div className="flex gap-1">
-            <button type="button" onClick={prevMonth} className="w-8 h-8 rounded-full hover:bg-white flex items-center justify-center text-slate-500">
+            <button type="button" onClick={prevMonth} className="w-8 h-8 rounded-full hover:bg-white flex items-center justify-center text-[#6A6A6A]">
               <ChevronLeft size={16} />
             </button>
-            <button type="button" onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-white flex items-center justify-center text-slate-500">
+            <button type="button" onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-white flex items-center justify-center text-[#6A6A6A]">
               <ChevronRight size={16} />
             </button>
           </div>
@@ -504,7 +498,7 @@ function CalendarPicker({ start, end, onSelect }: { start: string; end: string; 
 
         <div className="grid grid-cols-7 gap-1 mb-2">
           {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-            <span key={i} className="text-center text-slate-400 text-[11px] font-semibold">
+            <span key={i} className="text-center text-[#6A6A6A] text-[11px] font-semibold">
               {d}
             </span>
           ))}
@@ -526,12 +520,12 @@ function CalendarPicker({ start, end, onSelect }: { start: string; end: string; 
                 onClick={() => handleDayClick(d)}
                 className={`h-9 rounded-full text-[13px] transition-colors ${
                   edge
-                    ? 'bg-blue-600 text-white font-bold'
+                    ? 'bg-[#222222] text-white font-semibold'
                     : ranged
-                      ? 'bg-blue-50 text-blue-600 font-medium'
+                      ? 'bg-[#F7F7F7] text-[#222222] font-medium'
                       : past
                         ? 'text-slate-300 cursor-not-allowed'
-                        : 'text-slate-600 hover:bg-white'
+                        : 'text-[#6A6A6A] hover:bg-white'
                 }`}
               >
                 {d}
@@ -541,14 +535,14 @@ function CalendarPicker({ start, end, onSelect }: { start: string; end: string; 
         </div>
       </div>
 
-      <p className="text-slate-500 mt-4 text-sm">
+      <p className="text-[#6A6A6A] mt-4 text-sm">
         {!start ? (
           'Select your start date'
         ) : !end ? (
           'Now select your end date'
         ) : (
           <>
-            Selected: <span className="text-blue-600 font-bold">{formatDateRange(start, end)}</span>
+            Selected: <span className="text-[#222222] font-semibold">{formatDateRange(start, end)}</span>
           </>
         )}
       </p>

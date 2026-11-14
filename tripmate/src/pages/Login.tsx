@@ -193,7 +193,7 @@ export default function Login() {
             <button
               onClick={() => handleGoogleLogin()}
               disabled={isLoading}
-              className="flex items-center gap-2.5 pl-3 pr-5 py-2 rounded-full bg-white hover:bg-slate-100 text-slate-800 shadow-lg disabled:opacity-60 transition-colors"
+              className="flex items-center gap-2.5 pl-3 pr-5 py-2 rounded-full bg-white hover:bg-slate-100 text-[#222222] shadow-lg disabled:opacity-60 transition-colors"
               style={{ fontSize: 14, fontWeight: 600 }}
             >
               {isLoading ? <span className="google-btn-spinner" /> : <GoogleIcon />}

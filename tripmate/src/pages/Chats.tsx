@@ -6,80 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useChatAlerts, type ChatPush } from '../context/ChatAlertsContext';
 import { getSocket } from '../services/socket';
 import { alertsEnabled, setAlertsEnabled } from '../services/alerts';
-import { Avatar, CoverImg, Skeleton, ErrorState, cn, formatDateRange } from '../components/ui-bits';
-
-/* ── Chat wallpaper: a low-intensity, WhatsApp-style tiled doodle, travel themed ──
-   Plain line-art (plane, compass, pin, mountains, camera, palm tree, suitcase, sun,
-   wave) scattered densely across a 260×260 tile at a very faint opacity, so it reads
-   as texture from a distance rather than individual icons. */
-const CHAT_DOODLE_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260" viewBox="0 0 260 260">
-  <g fill="none" stroke="#94A3B8" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity="0.08">
-    <!-- paper plane -->
-    <g transform="translate(20,25) rotate(-15) scale(0.8)">
-      <path d="M0 14 L30 0 L18 28 L13 18 Z" />
-      <path d="M0 14 L13 18" />
-    </g>
-    <!-- compass -->
-    <g transform="translate(175,20) scale(0.8)">
-      <circle cx="0" cy="0" r="14" />
-      <path d="M-5 5 L2 -6 L5 -5 L-2 6 Z" />
-    </g>
-    <!-- map pin -->
-    <g transform="translate(95,55) scale(0.75)">
-      <path d="M0 0 C-9 0 -9 13 0 22 C9 13 9 0 0 0 Z" />
-      <circle cx="0" cy="7" r="3" />
-    </g>
-    <!-- sun -->
-    <g transform="translate(230,70) scale(0.7)">
-      <circle cx="0" cy="0" r="7" />
-      <path d="M0 -13 L0 -10 M0 10 L0 13 M-13 0 L-10 0 M10 0 L13 0 M-9 -9 L-7 -7 M7 7 L9 9 M-9 9 L-7 7 M7 -7 L9 -9" />
-    </g>
-    <!-- mountains -->
-    <g transform="translate(25,110) scale(0.75)">
-      <path d="M0 26 L14 4 L22 16 L32 0 L48 26 Z" />
-    </g>
-    <!-- camera -->
-    <g transform="translate(150,110) scale(0.7)">
-      <rect x="-14" y="-8" width="28" height="20" rx="3" />
-      <circle cx="0" cy="2" r="6" />
-      <path d="M-6 -8 L-3 -13 L7 -13 L10 -8" />
-    </g>
-    <!-- wave -->
-    <g transform="translate(215,140) scale(0.8)">
-      <path d="M-14 0 C-10 -6 -4 -6 0 0 C4 6 10 6 14 0" />
-    </g>
-    <!-- palm tree -->
-    <g transform="translate(75,160) scale(0.7)">
-      <path d="M0 30 L0 6" />
-      <path d="M0 6 C-10 -2 -18 0 -22 -6" />
-      <path d="M0 6 C8 -4 16 -2 20 -8" />
-      <path d="M0 6 C-4 -6 -2 -14 -8 -18" />
-      <path d="M0 6 C4 -6 2 -14 8 -18" />
-    </g>
-    <!-- second paper plane -->
-    <g transform="translate(150,190) rotate(20) scale(0.7)">
-      <path d="M0 10 L22 0 L13 20 L9 13 Z" />
-      <path d="M0 10 L9 13" />
-    </g>
-    <!-- suitcase -->
-    <g transform="translate(35,215) scale(0.7)">
-      <rect x="-14" y="-8" width="28" height="20" rx="3" />
-      <path d="M-6 -8 L-6 -13 L6 -13 L6 -8" />
-    </g>
-    <!-- small map pin -->
-    <g transform="translate(220,225) scale(0.6)">
-      <path d="M0 0 C-9 0 -9 13 0 22 C9 13 9 0 0 0 Z" />
-      <circle cx="0" cy="7" r="3" />
-    </g>
-    <!-- small compass -->
-    <g transform="translate(105,235) scale(0.6)">
-      <circle cx="0" cy="0" r="14" />
-      <path d="M-5 5 L2 -6 L5 -5 L-2 6 Z" />
-    </g>
-  </g>
-</svg>`;
-const CHAT_DOODLE_BG = `url("data:image/svg+xml,${encodeURIComponent(CHAT_DOODLE_SVG)}")`;
+import { Avatar, CoverImg, Skeleton, ErrorState, UnderlineTabs, PAGE_TITLE, cn, formatDateRange } from '../components/ui-bits';
 
 /* ── Emoji picker: a small curated set, no external dependency ──────────────── */
 const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
@@ -461,7 +388,7 @@ export default function Chats() {
   return (
     <div className="flex flex-col lg:h-[calc(100vh-60px)]">
       <div className="flex items-center justify-between gap-3 mb-1 lg:mb-4 shrink-0">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Chats</h1>
+        <h1 className={PAGE_TITLE}>Chats</h1>
         <AlertsToggle />
       </div>
 
@@ -471,42 +398,23 @@ export default function Chats() {
         <div className="lg:grid lg:grid-cols-[340px_1fr] lg:grid-rows-1 lg:gap-6 lg:flex-1 lg:min-h-0">
           {/* ── Sidebar (tabs + list) ──────────────────────────────────────────── */}
           <div className={cn('lg:flex lg:flex-col lg:min-h-0', active && 'hidden lg:flex')}>
-            {/* Dual-tab pill switch */}
-            <div className="flex bg-slate-100 rounded-full p-1 mb-3 shrink-0">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => switchTab(t.id)}
-                  className={cn(
-                    'flex-1 rounded-full py-2 text-sm font-semibold transition-colors',
-                    tab === t.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500',
-                  )}
-                >
-                  {t.label}
-                  {(() => {
-                    const n = (t.id === 'groups' ? groups : inquiries).reduce((sum, c) => sum + c.unread, 0);
-                    return n > 0 ? (
-                      <span
-                        className={cn(
-                          'ml-1.5 inline-flex min-w-[18px] h-[18px] px-1 rounded-full items-center justify-center text-[10px] font-bold',
-                          tab === t.id ? 'bg-white text-blue-600' : 'bg-blue-600 text-white',
-                        )}
-                      >
-                        {n > 99 ? '99+' : n}
-                      </span>
-                    ) : null;
-                  })()}
-                </button>
-              ))}
-            </div>
+            <UnderlineTabs
+              tabs={TABS.map((t) => ({
+                value: t.id,
+                label: t.label,
+                badge: (t.id === 'groups' ? groups : inquiries).reduce((sum, c) => sum + c.unread, 0) || undefined,
+              }))}
+              value={tab}
+              onChange={switchTab}
+              className="mb-2 shrink-0"
+            />
 
             {/* Conversation list (scrolls within the pane on desktop) */}
-            <div className="space-y-2 lg:flex-1 lg:overflow-y-auto lg:min-h-0 lg:pr-1">
+            <div className="divide-y divide-[#DDDDDD] lg:flex-1 lg:overflow-y-auto lg:min-h-0">
               {view === 'loading' ? (
                 Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[82px]" />)
               ) : list.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-center py-16 px-6 text-slate-400">
+                <div className="flex flex-col items-center justify-center text-center py-16 px-6 text-[#6A6A6A]">
                   <MessageCircle size={28} className="mb-2" />
                   <p className="text-sm">
                     {tab === 'groups'
@@ -521,16 +429,16 @@ export default function Chats() {
                     type="button"
                     onClick={() => openChat(c.id)}
                     className={cn(
-                      'w-full flex items-center gap-3 p-3 rounded-2xl border transition-colors text-left',
-                      activeId === c.id ? 'bg-blue-50 border-blue-600/30' : 'bg-white border-slate-200 hover:bg-slate-50',
+                      'w-full flex items-center gap-3 px-2 py-4 transition-colors text-left',
+                      activeId === c.id ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]',
                     )}
                   >
                     <ConvThumb conv={c} size={56} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-slate-900 truncate text-[15px] font-bold">{c.title}</span>
+                        <span className="text-[#222222] truncate text-base font-semibold">{c.title}</span>
                         {c.lastMessage && (
-                          <span className={cn('shrink-0 text-xs', c.unread > 0 ? 'text-blue-600 font-semibold' : 'text-slate-400')}>
+                          <span className={cn('shrink-0 text-xs', c.unread > 0 ? 'text-[#222222] font-semibold' : 'text-[#6A6A6A]')}>
                             {fmtTime(c.lastMessage.createdAt)}
                           </span>
                         )}
@@ -539,7 +447,7 @@ export default function Chats() {
                         <span
                           className={cn(
                             'block truncate text-[13px]',
-                            c.unread > 0 ? 'text-slate-900 font-semibold' : 'text-slate-500',
+                            c.unread > 0 ? 'text-[#222222] font-semibold' : 'text-[#6A6A6A]',
                           )}
                         >
                           {c.lastMessage
@@ -547,7 +455,7 @@ export default function Chats() {
                             : 'No messages yet. Say hi 👋'}
                         </span>
                         {c.unread > 0 && (
-                          <span className="bg-blue-600 text-white rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center shrink-0 text-[11px] font-bold">
+                          <span className="bg-blue-600 text-white rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center shrink-0 text-[11px] font-semibold">
                             {c.unread > 99 ? '99+' : c.unread}
                           </span>
                         )}
@@ -565,32 +473,29 @@ export default function Chats() {
               ──────────────────────────────────────────────────────────────────── */}
           <div
             className={cn(
-              'flex-col bg-white lg:h-full lg:min-h-0 lg:rounded-3xl lg:border lg:border-slate-200 lg:overflow-hidden',
+              'flex-col bg-white lg:h-full lg:min-h-0 lg:border-l lg:border-[#DDDDDD] lg:overflow-hidden',
               active ? 'flex fixed inset-0 z-50 lg:static lg:z-auto' : 'hidden lg:flex',
             )}
           >
             {active ? (
               <>
                 {/* Header: locked at the top */}
-                <div className="flex items-center gap-3 p-4 border-b border-slate-200 shrink-0">
-                  <button type="button" onClick={closeChat} className="lg:hidden text-slate-500" aria-label="Back">
+                <div className="flex items-center gap-3 p-4 border-b border-[#DDDDDD] shrink-0">
+                  <button type="button" onClick={closeChat} className="lg:hidden text-[#6A6A6A]" aria-label="Back">
                     <ChevronLeft size={22} />
                   </button>
                   <ConvThumb conv={active} size={40} header />
                   <div className="flex-1 min-w-0">
-                    <p className="text-slate-900 text-[15px] font-bold truncate">{active.title}</p>
-                    <p className="text-slate-400 text-xs truncate">{subtitle(active)}</p>
+                    <p className="text-[#222222] text-[15px] font-semibold truncate">{active.title}</p>
+                    <p className="text-[#6A6A6A] text-xs truncate">{subtitle(active)}</p>
                   </div>
                 </div>
 
                 {/* Message list: the ONLY scrollable region */}
-                <div
-                  className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3 bg-slate-50"
-                  style={{ backgroundImage: CHAT_DOODLE_BG, backgroundRepeat: 'repeat', backgroundSize: '260px 260px' }}
-                >
-                  {messagesLoading && <p className="text-center text-slate-400 text-sm">Loading messages…</p>}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3 bg-white">
+                  {messagesLoading && <p className="text-center text-[#6A6A6A] text-sm">Loading messages…</p>}
                   {!messagesLoading && messages.length === 0 && (
-                    <p className="text-center text-slate-400 text-sm py-10">No messages yet. Start the conversation!</p>
+                    <p className="text-center text-[#6A6A6A] text-sm py-10">No messages yet. Start the conversation!</p>
                   )}
                   {messages.map((m, i) => {
                     const prev = messages[i - 1];
@@ -599,7 +504,7 @@ export default function Chats() {
                       <div key={m.id}>
                         {isNewDay && (
                           <div className="flex justify-center my-3">
-                            <span className="bg-white/90 border border-slate-200 text-slate-500 text-xs font-semibold px-3 py-1 rounded-full">
+                            <span className="bg-white/90 border border-[#DDDDDD] text-[#6A6A6A] text-xs font-semibold px-3 py-1 rounded-full">
                               {fmtDateDivider(m.createdAt)}
                             </span>
                           </div>
@@ -621,7 +526,7 @@ export default function Chats() {
                 </div>
 
                 {/* Input: locked at the bottom */}
-                <div className="border-t border-slate-200 shrink-0">
+                <div className="border-t border-[#DDDDDD] shrink-0">
                   {sendError && <p className="text-red-500 text-xs px-4 pt-2">{sendError}</p>}
                   {replyingTo && (
                     <div className="mx-3 mt-3 flex items-center gap-3 rounded-xl bg-slate-100 border-l-4 border-blue-600 px-3 py-2">
@@ -630,13 +535,13 @@ export default function Chats() {
                         <p className="text-[12px] font-semibold text-blue-600">
                           Replying to {replyingTo.sender.id === user?.id ? 'yourself' : replyingTo.sender.name.split(' ')[0]}
                         </p>
-                        <p className="text-[13px] text-slate-500 truncate">{replyingTo.text}</p>
+                        <p className="text-[13px] text-[#6A6A6A] truncate">{replyingTo.text}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setReplyingTo(null)}
                         aria-label="Cancel reply"
-                        className="text-slate-400 hover:text-slate-600 shrink-0"
+                        className="text-[#6A6A6A] hover:text-[#6A6A6A] shrink-0"
                       >
                         <X size={18} />
                       </button>
@@ -646,11 +551,11 @@ export default function Chats() {
                     {showEmoji && (
                       <div
                         ref={emojiRef}
-                        className="absolute bottom-full left-3 mb-2 w-72 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-[0_12px_32px_rgba(15,23,42,0.16)] p-3 z-10"
+                        className="absolute bottom-full left-3 mb-2 w-72 max-h-64 overflow-y-auto bg-white border border-[#DDDDDD] rounded-2xl shadow-[0_12px_32px_rgba(15,23,42,0.16)] p-3 z-10"
                       >
                         {EMOJI_GROUPS.map((group) => (
                           <div key={group.label} className="mb-2 last:mb-0">
-                            <p className="text-slate-400 text-[11px] font-semibold uppercase tracking-wide mb-1">{group.label}</p>
+                            <p className="text-[#6A6A6A] text-[11px] font-semibold uppercase tracking-wide mb-1">{group.label}</p>
                             <div className="grid grid-cols-8 gap-1">
                               {group.emojis.map((e) => (
                                 <button
@@ -673,7 +578,7 @@ export default function Chats() {
                       aria-label="Add emoji"
                       className={cn(
                         'w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-colors',
-                        showEmoji ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-100',
+                        showEmoji ? 'bg-blue-50 text-blue-600' : 'text-[#6A6A6A] hover:text-blue-600 hover:bg-slate-100',
                       )}
                     >
                       <Smile size={21} />
@@ -688,7 +593,7 @@ export default function Chats() {
                       }}
                       maxLength={1000}
                       placeholder={tab === 'groups' ? 'Message the group…' : 'Write a reply…'}
-                      className="flex-1 bg-slate-100 rounded-full px-5 py-3 outline-none text-slate-900 placeholder:text-slate-400"
+                      className="flex-1 bg-white border border-[#B0B0B0] focus:border-[#222222] rounded-full px-5 py-3 outline-none text-[#222222] placeholder:text-[#6A6A6A] transition-colors"
                     />
                     <button
                       type="button"
@@ -703,7 +608,7 @@ export default function Chats() {
                 </div>
               </>
             ) : (
-              <div className="flex-1 hidden lg:flex items-center justify-center text-slate-400 text-[15px]">
+              <div className="flex-1 hidden lg:flex items-center justify-center text-[#6A6A6A] text-[15px]">
                 Select a conversation to start chatting
               </div>
             )}
@@ -738,7 +643,7 @@ function AlertsToggle() {
         'flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors',
         on
           ? 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
-          : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600',
+          : 'border-[#DDDDDD] bg-white text-[#6A6A6A] hover:text-[#6A6A6A]',
       )}
     >
       {on ? <BellRing size={15} /> : <BellOff size={15} />} {on ? 'Alerts on' : 'Alerts off'}
@@ -800,7 +705,7 @@ function MessageRow({
       onClick={onReply}
       aria-label="Reply"
       title="Reply"
-      className="self-center shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+      className="self-center shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[#6A6A6A] hover:text-blue-600 hover:bg-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
     >
       <Reply size={16} />
     </button>
@@ -818,7 +723,7 @@ function MessageRow({
       {/* Reply icon revealed behind the message while swiping */}
       {dx > 0 && (
         <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-blue-600"
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-[#DDDDDD] flex items-center justify-center text-blue-600"
           style={{ opacity: Math.min(1, dx / SWIPE_TRIGGER) }}
         >
           <Reply size={16} />
@@ -833,7 +738,7 @@ function MessageRow({
         {!fromMe && <Avatar src={m.sender.avatar} name={m.sender.name} size={28} />}
         <div className="max-w-[75%] min-w-0">
           {!fromMe && showName && (
-            <p className="text-slate-400 mb-1 ml-1 text-[11px] font-semibold">{m.sender.name.split(' ')[0]}</p>
+            <p className="text-[#6A6A6A] mb-1 ml-1 text-[11px] font-semibold">{m.sender.name.split(' ')[0]}</p>
           )}
           <div
             className={cn(
@@ -841,7 +746,7 @@ function MessageRow({
               m.pending && 'opacity-70',
               fromMe
                 ? 'bg-blue-600 text-white rounded-br-md'
-                : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md',
+                : 'bg-white text-[#222222] border border-[#DDDDDD] rounded-bl-md',
               highlighted && 'ring-2 ring-amber-400',
             )}
           >
@@ -857,12 +762,12 @@ function MessageRow({
                 <span className={cn('block font-semibold', fromMe ? 'text-white' : 'text-blue-600')}>
                   {nameFor(m.replyTo.sender)}
                 </span>
-                <span className={cn('line-clamp-2', fromMe ? 'text-white/80' : 'text-slate-500')}>{m.replyTo.text}</span>
+                <span className={cn('line-clamp-2', fromMe ? 'text-white/80' : 'text-[#6A6A6A]')}>{m.replyTo.text}</span>
               </button>
             )}
             {m.text}
           </div>
-          <p className={cn('text-slate-400 mt-1 text-[11px]', fromMe ? 'text-right mr-1' : 'ml-1')}>
+          <p className={cn('text-[#6A6A6A] mt-1 text-[11px]', fromMe ? 'text-right mr-1' : 'ml-1')}>
             {m.pending ? 'Sending…' : fmtClock(m.createdAt)}
           </p>
         </div>

@@ -9,8 +9,9 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    // Printing every query is handy locally but slows and floods production logs.
-    log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : ['query', 'error', 'warn'],
+    // Only errors and warnings by default. To see every SQL query while debugging,
+    // start the backend with PRISMA_LOG_QUERIES=true (e.g. PRISMA_LOG_QUERIES=true npm run dev).
+    log: process.env.PRISMA_LOG_QUERIES === 'true' ? ['query', 'error', 'warn'] : ['error', 'warn'],
   });
 
 if (process.env.NODE_ENV !== 'production') {

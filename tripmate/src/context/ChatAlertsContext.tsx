@@ -113,7 +113,7 @@ export function ChatAlertsProvider({ children }: { children: ReactNode }) {
             >
               <Avatar src={toast.message.sender.avatar} name={toast.message.sender.name} size={40} />
               <span className="min-w-0">
-                <span className="block text-[13px] font-bold text-slate-900 truncate">
+                <span className="block text-[13px] font-semibold text-slate-900 truncate">
                   {toast.message.sender.name.split(' ')[0]} · {toast.chatTitle}
                 </span>
                 <span className="block text-[13px] text-slate-500 truncate">{toast.message.text}</span>

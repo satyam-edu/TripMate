@@ -1,5 +1,29 @@
 import { useState, type CSSProperties, type ImgHTMLAttributes, type ReactNode } from 'react';
 
+/* ── Trip card text (Airbnb-style hierarchy: near-black first, one soft grey for the rest) ── */
+export const TEXT_STRONG = 'text-[#222222]';
+export const TEXT_SOFT = 'text-[#6A6A6A]';
+// Trip cards have no hover effect on purpose.
+export const LINE = 'border-[#DDDDDD]'; // the one hairline colour used for dividers and outlines
+export const PAGE_TITLE = 'text-[28px] sm:text-[32px] font-semibold leading-tight text-[#222222]';
+export const H2 = 'text-[22px] font-semibold leading-snug text-[#222222]';
+// Outline button (Airbnb "secondary"): dark thin border, no fill.
+export const BTN_OUTLINE =
+  'inline-flex items-center justify-center gap-1.5 rounded-full border border-[#222222] text-[#222222] hover:bg-slate-50 disabled:opacity-50 px-4 py-2 text-sm font-semibold transition-colors';
+export const CARD_FRAME = 'block aspect-[16/10] overflow-hidden rounded-2xl bg-slate-100';
+export const CARD_IMG = 'w-full h-full object-cover';
+
+export function TripMeta({ trip }: { trip: { country: string; startDate: string; endDate: string; budget: number } }) {
+  return (
+    <>
+      <p className={`${TEXT_SOFT} text-sm leading-snug`}>
+        {trip.country} · {formatDateRange(trip.startDate, trip.endDate)}
+      </p>
+      <p className={`${TEXT_STRONG} text-sm font-semibold mt-0.5`}>{formatBudget(trip.budget)}</p>
+    </>
+  );
+}
+
 /* ── Trip cover photo ───────────────────────────────────────────────────────── */
 // Bundled with the app, so it shows even when a cover link is missing or its host is down.
 const FALLBACK_COVER = '/travel-bg-poster.jpg';
@@ -78,7 +102,7 @@ export function Avatar({
 }) {
   // Falls back to initials if the photo link is broken (e.g. an expired Google photo URL).
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const cls = cn('inline-flex items-center justify-center rounded-full overflow-hidden bg-[#EFF6FF] text-[#2563EB] font-bold shrink-0');
+  const cls = cn('inline-flex items-center justify-center rounded-full overflow-hidden bg-[#EFF6FF] text-[#2563EB] font-semibold shrink-0');
   // A real border (not the box-shadow-based `ring` utility) so the circle stays exact
   // at every zoom/DPI — box-shadow rings can show a faint edge gap on some displays.
   const style: CSSProperties = ring
@@ -121,13 +145,47 @@ export function Pill({
       className={cn(
         'whitespace-nowrap rounded-full px-4 py-2 transition-all border',
         active
-          ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-sm shadow-blue-200'
-          : 'bg-white text-[#64748B] border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB]',
+          ? 'bg-[#222222] text-white border-[#222222]'
+          : 'bg-white text-[#222222] border-[#DDDDDD] hover:border-[#222222]',
       )}
-      style={{ fontSize: 14, fontWeight: 600 }}
+      style={{ fontSize: 14, fontWeight: 400 }}
     >
       {children}
     </button>
+  );
+}
+
+/* ── Underline tabs (Airbnb style) ──────────────────────────────────────────── */
+export function UnderlineTabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+  className,
+}: {
+  tabs: { value: T; label: string; badge?: number }[];
+  value: T;
+  onChange: (v: T) => void;
+  className?: string;
+}) {
+  return (
+    <div role="tablist" className={cn('flex gap-8 border-b border-[#DDDDDD]', className)}>
+      {tabs.map((t) => (
+        <button
+          key={t.value}
+          type="button"
+          role="tab"
+          aria-selected={value === t.value}
+          onClick={() => onChange(t.value)}
+          className={cn(
+            '-mb-px pb-3 text-[15px] font-semibold border-b-2 transition-colors',
+            value === t.value ? 'border-[#222222] text-[#222222]' : 'border-transparent text-[#6A6A6A] hover:text-[#222222]',
+          )}
+        >
+          {t.label}
+          {!!t.badge && <span className="ml-1.5 text-[#6A6A6A] font-normal">{t.badge}</span>}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -142,8 +200,8 @@ export function SectionHeader({
   onAction?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-[#0F172A] tracking-tight" style={{ fontSize: 19, fontWeight: 700 }}>
+    <div className="flex items-center justify-between mb-5">
+      <h2 className="text-[#222222]" style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>
         {title}
       </h2>
       {action && (
@@ -161,7 +219,7 @@ export function SectionHeader({
 
 /* ── Skeleton ───────────────────────────────────────────────────────────────── */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-2xl bg-[#F1F5F9]', className)} />;
+  return <div className={cn('animate-pulse rounded-2xl bg-[#EBEBEB]', className)} />;
 }
 
 /* ── Empty state ────────────────────────────────────────────────────────────── */
@@ -180,13 +238,13 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-      <div className="w-20 h-20 rounded-full bg-[#EFF6FF] flex items-center justify-center text-[#2563EB] mb-5">
+      <div className="w-20 h-20 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#222222] mb-5">
         {icon}
       </div>
-      <h3 className="text-[#0F172A] mb-2" style={{ fontSize: 18, fontWeight: 700 }}>
+      <h3 className="text-[#222222] mb-2" style={{ fontSize: 20, fontWeight: 600 }}>
         {title}
       </h3>
-      <p className="text-[#64748B] max-w-xs mb-6" style={{ fontSize: 14 }}>
+      <p className="text-[#6A6A6A] max-w-xs mb-6" style={{ fontSize: 14 }}>
         {subtitle}
       </p>
       {action && (
@@ -209,10 +267,10 @@ export function ErrorState({ onRetry }: { onRetry: () => void }) {
       <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-5">
         <span style={{ fontSize: 34 }}>⚠️</span>
       </div>
-      <h3 className="text-[#0F172A] mb-2" style={{ fontSize: 18, fontWeight: 700 }}>
+      <h3 className="text-[#222222] mb-2" style={{ fontSize: 20, fontWeight: 600 }}>
         Something went wrong
       </h3>
-      <p className="text-[#64748B] max-w-xs mb-6" style={{ fontSize: 14 }}>
+      <p className="text-[#6A6A6A] max-w-xs mb-6" style={{ fontSize: 14 }}>
         We couldn't load this right now. Check your connection and try again.
       </p>
       <button

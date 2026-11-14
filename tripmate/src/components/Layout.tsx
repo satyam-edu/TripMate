@@ -54,7 +54,7 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
   return (
     <span
       className={cn(
-        'min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center',
+        'min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-semibold flex items-center justify-center',
         className,
       )}
     >
@@ -189,7 +189,7 @@ function BottomNav() {
   const { unreadTotal } = useChatAlerts();
   return (
     <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40">
-      <nav className="flex items-center gap-1 bg-white/95 backdrop-blur-md border border-[#E2E8F0] rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(15,23,42,0.12)]">
+      <nav className="flex items-center gap-1 bg-white/95 backdrop-blur-md border border-[#DDDDDD] rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(15,23,42,0.12)]">
         {items.map((it) => {
           const Icon = it.icon;
           return (
@@ -201,7 +201,7 @@ function BottomNav() {
               className={({ isActive }) =>
                 cn(
                   'relative w-11 h-11 rounded-full flex items-center justify-center transition-all',
-                  isActive ? 'bg-[#2563EB] text-white shadow-md shadow-blue-300' : 'text-[#94A3B8]',
+                  isActive ? 'bg-[#2563EB] text-white shadow-md shadow-blue-300' : 'text-[#6A6A6A]',
                 )
               }
             >

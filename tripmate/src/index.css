@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Airbnb Cereal, self-hosted (public/fonts) */
+@font-face { font-family: 'Airbnb Cereal'; src: url('/fonts/cereal-light.woff2') format('woff2'); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Airbnb Cereal'; src: url('/fonts/cereal-book.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Airbnb Cereal'; src: url('/fonts/cereal-medium.woff2') format('woff2'); font-weight: 500 600; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Airbnb Cereal'; src: url('/fonts/cereal-bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Airbnb Cereal'; src: url('/fonts/cereal-xbold.woff2') format('woff2'); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Airbnb Cereal'; src: url('/fonts/cereal-black.woff2') format('woff2'); font-weight: 900; font-style: normal; font-display: swap; }
+
 /* Scrollbar-hide utility for horizontal scrollers */
 .scrollbar-none {
   -ms-overflow-style: none;
@@ -34,7 +42,7 @@
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
-  --font: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font: 'Airbnb Cereal', 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /* Soft UI palette */
   --bg:          hsl(220, 22%, 95%);

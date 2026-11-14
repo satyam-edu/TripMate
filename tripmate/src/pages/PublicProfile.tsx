@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { BadgeCheck, Calendar, Compass, Flag, Link2, MapPin, MoreVertical, ShieldOff, Star, UserX, Wallet, X } from 'lucide-react';
+import { BadgeCheck, Compass, Flag, Link2, MapPin, MoreVertical, ShieldOff, Star, UserX, X } from 'lucide-react';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, CoverImg, ErrorState, Skeleton, cn, formatBudget, formatDateRange, TAG_STYLE, tripPath } from '../components/ui-bits';
+import { H2, Avatar, CoverImg, TripMeta, TEXT_STRONG, CARD_FRAME, CARD_IMG, ErrorState, Skeleton, cn, TAG_STYLE, tripPath } from '../components/ui-bits';
 
 /* ── Types (match GET /api/users/:id — private fields already stripped server-side) ── */
 interface PublicTrip {
@@ -114,7 +114,7 @@ export default function PublicProfile() {
   if (view === 'notfound' || !profile) {
     return (
       <div className="text-center py-20">
-        <p className="text-slate-900 text-lg font-bold">This traveller couldn't be found.</p>
+        <p className="text-[#222222] text-lg font-semibold">This traveller couldn't be found.</p>
         <Link
           to="/"
           className="inline-block mt-5 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2.5 text-sm font-semibold transition-colors"
@@ -131,7 +131,7 @@ export default function PublicProfile() {
     <div className="pb-28 lg:pb-10 max-w-4xl mx-auto">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="relative">
-        <div className="h-40 sm:h-52 rounded-3xl overflow-hidden bg-slate-100">
+        <div className="h-40 sm:h-52 rounded-2xl overflow-hidden bg-slate-100">
           <img src={profile.coverImage || COVER} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="absolute -bottom-8 left-5">
@@ -142,7 +142,7 @@ export default function PublicProfile() {
       <div className="mt-12 px-1">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-1.5 min-w-0">
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight truncate">{profile.name}</h1>
+            <h1 className="text-[26px] font-semibold leading-tight text-[#222222] truncate">{profile.name}</h1>
             <span title="Verified via Google" className="text-blue-600 shrink-0">
               <BadgeCheck size={20} />
             </span>
@@ -154,21 +154,21 @@ export default function PublicProfile() {
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
               aria-label="More options"
-              className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-colors"
+              className="w-10 h-10 flex items-center justify-center rounded-full border border-[#222222] text-[#222222] hover:bg-slate-50 transition-colors"
             >
               <MoreVertical size={17} />
             </button>
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200 rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.16)] z-50 overflow-hidden py-1.5">
+                <div className="absolute right-0 mt-2 w-52 bg-white border border-[#DDDDDD] rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.16)] z-50 overflow-hidden py-1.5">
                   <button
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
                       setReportOpen(true);
                     }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#222222] hover:bg-slate-50 transition-colors"
                   >
                     <Flag size={15} /> Report {profile.name.split(' ')[0]}
                   </button>
@@ -188,43 +188,43 @@ export default function PublicProfile() {
         </div>
 
         {profile.blockedByMe && (
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-500 text-xs font-semibold px-3 py-1">
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-[#6A6A6A] text-xs font-semibold px-3 py-1">
             <ShieldOff size={12} /> You've blocked this person
           </p>
         )}
         {actionError && <p className="text-red-500 text-sm mt-2">{actionError}</p>}
-        <p className="text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
+        <p className="text-[#6A6A6A] flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
           {profile.avgRating !== null && (
-            <span className="flex items-center gap-1 font-semibold text-slate-700">
-              <Star size={14} className="text-amber-400" fill="currentColor" />
-              {profile.avgRating} <span className="text-slate-400 font-normal">({profile.reviews.length})</span>
+            <span className="flex items-center gap-1 font-semibold text-[#222222]">
+              <Star size={14} fill="currentColor" />
+              {profile.avgRating} <span className="text-[#6A6A6A] font-normal">({profile.reviews.length})</span>
             </span>
           )}
           {profile.location && (
             <span className="flex items-center gap-1">
-              <MapPin size={14} className="text-slate-400" /> {profile.location}
+              <MapPin size={14} /> {profile.location}
             </span>
           )}
           <span>On TripMate since {memberSince(profile.createdAt)}</span>
         </p>
 
-        {profile.bio && <p className="text-slate-600 text-sm mt-4 leading-relaxed">{profile.bio}</p>}
+        {profile.bio && <p className="text-[#222222] text-base mt-5 leading-relaxed">{profile.bio}</p>}
 
         {profile.socialHandle && (
           <a
             href={normalizeUrl(profile.socialHandle)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 mt-3 text-sm font-semibold text-slate-700 border border-slate-200 rounded-full px-3.5 py-1.5 hover:border-blue-600 hover:text-blue-600 transition-colors"
+            className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-[#222222] underline underline-offset-4"
           >
             <Link2 size={16} /> Social profile
           </a>
         )}
 
         {profile.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-5">
             {profile.tags.map((t) => (
-              <span key={t} className="px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[13px] font-semibold">
+              <span key={t} className="px-3 py-1.5 rounded-full border border-[#DDDDDD] text-[#222222] text-[13px] font-medium">
                 {t}
               </span>
             ))}
@@ -234,26 +234,26 @@ export default function PublicProfile() {
 
       {/* ── Reviews ─────────────────────────────────────────────────────────── */}
       {profile.reviews.length > 0 && (
-        <div className="mt-8 px-1">
-          <h2 className="text-slate-900 font-bold text-lg mb-4">
-            Reviews <span className="ml-1.5 text-slate-400 font-semibold">{profile.reviews.length}</span>
+        <div className="mt-10 px-1">
+          <h2 className={cn(H2, 'mb-2')}>
+            Reviews <span className="ml-1 text-[#6A6A6A] font-normal">· {profile.reviews.length}</span>
           </h2>
-          <div className="space-y-3">
+          <div className="divide-y divide-[#DDDDDD]">
             {profile.reviews.map((r) => (
-              <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+              <div key={r.id} className="py-5">
                 <div className="flex items-center gap-3">
                   <Avatar src={r.reviewer.avatar} name={r.reviewer.name} size={36} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-slate-900 font-semibold text-sm truncate">{r.reviewer.name}</p>
-                    <p className="text-slate-400 text-xs truncate">{r.trip.destination}</p>
+                    <p className="text-[#222222] font-semibold text-sm truncate">{r.reviewer.name}</p>
+                    <p className="text-[#6A6A6A] text-xs truncate">{r.trip.destination}</p>
                   </div>
-                  <div className="flex gap-0.5 shrink-0 text-amber-400">
+                  <div className="flex gap-0.5 shrink-0 text-[#222222]">
                     {Array.from({ length: 5 }, (_, i) => (
                       <Star key={i} size={13} fill={i < r.rating ? 'currentColor' : 'none'} strokeWidth={1.75} />
                     ))}
                   </div>
                 </div>
-                {r.text && <p className="text-slate-600 text-sm mt-2 leading-relaxed">{r.text}</p>}
+                {r.text && <p className="text-[#222222] text-sm mt-2 leading-relaxed">{r.text}</p>}
               </div>
             ))}
           </div>
@@ -263,21 +263,21 @@ export default function PublicProfile() {
       {reportOpen && <ReportModal name={profile.name} userId={profile.id} onClose={() => setReportOpen(false)} />}
 
       {/* ── Hosted trips ────────────────────────────────────────────────────── */}
-      <div className="mt-8 px-1">
-        <h2 className="text-slate-900 font-bold text-lg mb-4">
+      <div className="mt-10 px-1">
+        <h2 className={cn(H2, 'mb-5')}>
           Trips hosted by {profile.name.split(' ')[0]}
-          <span className="ml-1.5 text-slate-400 font-semibold">{profile.trips.length}</span>
+          <span className="ml-1 text-[#6A6A6A] font-normal">· {profile.trips.length}</span>
         </h2>
 
         {profile.trips.length === 0 ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center flex flex-col items-center">
-            <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-4">
+          <div className="py-12 text-center flex flex-col items-center">
+            <div className="w-16 h-16 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#222222] mb-4">
               <Compass size={30} />
             </div>
-            <p className="text-slate-900 font-bold">Hasn't hosted a trip yet.</p>
+            <p className="text-[#222222] text-xl font-semibold">Hasn't hosted a trip yet.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
             {profile.trips.map((t) => (
               <PublicTripCard key={t.id} trip={t} isPast={!upcoming.includes(t)} />
             ))}
@@ -295,15 +295,15 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
   return (
     <Link
       to={tripPath(trip)}
-      className="block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_8px_40px_rgba(37,99,235,0.25)] hover:border-blue-400/50 transition-[box-shadow,border-color] duration-300"
+      className="block"
     >
       <div className="relative">
-        <div className="aspect-[16/10] bg-slate-100">
+        <div className={CARD_FRAME}>
           <CoverImg
             src={trip.coverImage}
             size={500}
             alt={trip.destination}
-            className={cn('w-full h-full object-cover', isPast && 'grayscale-[40%] opacity-80')}
+            className={cn(CARD_IMG, isPast && 'grayscale-[40%] opacity-80')}
             loading="lazy"
           />
         </div>
@@ -313,24 +313,16 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
           </span>
         )}
         {isPast && (
-          <span className="absolute top-3 right-3 bg-white/95 text-slate-500 rounded-full px-3 py-1 text-[11px] font-semibold">
+          <span className="absolute top-3 right-3 bg-white/95 text-[#6A6A6A] rounded-full px-3 py-1 text-[11px] font-semibold">
             Past trip
           </span>
         )}
       </div>
-      <div className="p-4">
-        <div className="flex items-start gap-1.5 text-slate-900 min-w-0 mb-1">
-          <span className="text-[17px] leading-snug font-bold line-clamp-2 break-words">{trip.destination}</span>
-        </div>
-        <p className="text-slate-400 text-[13px] mb-3">{trip.country}</p>
-        <div className="flex items-center gap-4 text-slate-500 text-[13px]">
-          <span className="flex items-center gap-1.5">
-            <Calendar size={14} /> {formatDateRange(trip.startDate, trip.endDate)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Wallet size={14} /> {formatBudget(trip.budget)}
-          </span>
-        </div>
+      <div className="pt-3">
+        <span className={cn('block text-base leading-snug font-semibold line-clamp-2 break-words mb-0.5', TEXT_STRONG)}>
+          {trip.destination}
+        </span>
+        <TripMeta trip={trip} />
       </div>
     </Link>
   );
@@ -374,25 +366,25 @@ function ReportModal({ name, userId, onClose }: { name: string; userId: string; 
       <div className="absolute inset-0 bg-slate-950/50" onClick={onClose} />
       <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-bold text-slate-900">{sent ? 'Report sent' : `Report ${name}`}</h2>
-          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className="text-lg font-semibold text-[#222222]">{sent ? 'Report sent' : `Report ${name}`}</h2>
+          <button onClick={onClose} aria-label="Close" className="text-[#6A6A6A] hover:text-[#6A6A6A] transition-colors">
             <X size={20} />
           </button>
         </div>
 
         {sent ? (
-          <p className="text-slate-600 text-sm mt-3">
+          <p className="text-[#6A6A6A] text-sm mt-3">
             Thanks, we've received your report and will look into it. You don't need to do anything else.
           </p>
         ) : (
           <>
-            <p className="text-slate-500 text-sm mt-1 mb-4">This is sent privately; {name.split(' ')[0]} won't be notified.</p>
+            <p className="text-[#6A6A6A] text-sm mt-1 mb-4">This is sent privately; {name.split(' ')[0]} won't be notified.</p>
 
             <div className="space-y-2">
               {REPORT_REASONS.map((r) => (
                 <label
                   key={r.value}
-                  className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-medium text-slate-700 cursor-pointer hover:border-blue-600 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 transition-colors"
+                  className="flex items-center gap-2.5 rounded-xl border border-[#DDDDDD] px-3.5 py-2.5 text-sm font-medium text-[#222222] cursor-pointer hover:border-blue-600 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 transition-colors"
                 >
                   <input
                     type="radio"
@@ -413,7 +405,7 @@ function ReportModal({ name, userId, onClose }: { name: string; userId: string; 
               rows={3}
               maxLength={1000}
               placeholder="Anything else that would help us understand (optional)"
-              className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 resize-none"
+              className="mt-3 w-full rounded-xl border border-[#DDDDDD] bg-slate-50 p-3 text-sm text-[#222222] placeholder:text-[#6A6A6A] outline-none focus:border-blue-600 resize-none"
             />
 
             {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
@@ -423,7 +415,7 @@ function ReportModal({ name, userId, onClose }: { name: string; userId: string; 
                 type="button"
                 onClick={onClose}
                 disabled={sending}
-                className="px-5 py-2.5 rounded-full border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
+                className="px-5 py-2.5 rounded-full border border-[#DDDDDD] text-[#6A6A6A] text-sm font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
               >
                 Cancel
               </button>

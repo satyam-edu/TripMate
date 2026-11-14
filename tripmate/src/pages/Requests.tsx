@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Inbox, MapPin, MessageCircle } from 'lucide-react';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
-import { Avatar, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
+import { Avatar, CoverImg, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
 
 /* ── Types (match backend payloads) ─────────────────────────────────────────── */
 interface ReceivedRequest {
@@ -215,8 +215,9 @@ export default function Requests() {
               >
                 <div className="flex gap-3.5">
                   <span className="w-[72px] h-[72px] rounded-2xl overflow-hidden bg-slate-100 shrink-0">
-                    <img
-                      src={r.trip.coverImage || `https://loremflickr.com/200/200/${encodeURIComponent(r.trip.destination)}/travel`}
+                    <CoverImg
+                      src={r.trip.coverImage}
+                      size={330}
                       alt={r.trip.destination}
                       className="w-full h-full object-cover"
                       loading="lazy"

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
+import { Avatar, CoverImg, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
 
 /* ── Types (match GET /api/trips/:id) ───────────────────────────────────────── */
 interface Person {
@@ -110,9 +110,6 @@ export default function TripDetail() {
   const hasEnded = new Date(trip.endDate) <= new Date();
   const status = trip.myRequest?.status;
   const hostFirst = trip.host.name.split(' ')[0];
-  const cover =
-    trip.coverImage ||
-    `https://loremflickr.com/1200/600/${encodeURIComponent(trip.destination.split(',')[0]?.trim() ?? 'travel')}/travel`;
 
   const share = async () => {
     const url = window.location.href;
@@ -160,7 +157,7 @@ export default function TripDetail() {
 
       {/* ── Cover ───────────────────────────────────────────────────────────── */}
       <div className="relative h-56 sm:h-72 rounded-3xl overflow-hidden bg-slate-100">
-        <img src={cover} alt={trip.destination} className="w-full h-full object-cover" />
+        <CoverImg src={trip.coverImage} alt={trip.destination} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
         <button
           type="button"

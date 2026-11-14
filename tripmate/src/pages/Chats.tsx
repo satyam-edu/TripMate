@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useChatAlerts, type ChatPush } from '../context/ChatAlertsContext';
 import { getSocket } from '../services/socket';
 import { alertsEnabled, setAlertsEnabled } from '../services/alerts';
-import { Avatar, Skeleton, ErrorState, cn, formatDateRange } from '../components/ui-bits';
+import { Avatar, CoverImg, Skeleton, ErrorState, cn, formatDateRange } from '../components/ui-bits';
 
 /* ── Chat wallpaper: a low-intensity, WhatsApp-style tiled doodle, travel themed ──
    Plain line-art (plane, compass, pin, mountains, camera, palm tree, suitcase, sun,
@@ -877,14 +877,12 @@ function ConvThumb({ conv, size, header }: { conv: Conversation; size: number; h
   if (conv.kind === 'inquiries') {
     return <Avatar src={conv.image} name={conv.title} size={size} />;
   }
-  const cover =
-    conv.image || `https://loremflickr.com/200/200/${encodeURIComponent(conv.title.split(',')[0]?.trim() ?? 'travel')}/travel`;
   return (
     <span
       className={cn('overflow-hidden bg-slate-100 shrink-0', header ? 'rounded-xl' : 'rounded-2xl')}
       style={{ width: size, height: size }}
     >
-      <img src={cover} alt={conv.title} className="w-full h-full object-cover" loading="lazy" />
+      <CoverImg src={conv.image} size={330} alt={conv.title} className="w-full h-full object-cover" loading="lazy" />
     </span>
   );
 }

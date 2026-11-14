@@ -1,5 +1,6 @@
 // Finds a cover photo for a destination from Wikipedia (free, no API key).
-// Falls back to a seeded random photo when the place has no usable page or the lookup fails.
+// Returns null when the place has no usable page or the lookup fails; the app then shows its
+// bundled fallback photo (third-party random-photo services went down and left blank cards).
 const UA = 'TripMate/1.0 (https://www.tripmateapp.tech)';
 
 async function wikiThumb(title: string): Promise<string | null> {
@@ -19,8 +20,7 @@ async function wikiThumb(title: string): Promise<string | null> {
   }
 }
 
-export async function findCoverImage(destination: string, country: string): Promise<string> {
+export async function findCoverImage(destination: string, country: string): Promise<string | null> {
   const place = destination.split(',')[0]!.trim() || 'travel';
-  const found = (await wikiThumb(place)) ?? (await wikiThumb(`${place}, ${country}`));
-  return found ?? `https://picsum.photos/seed/${encodeURIComponent(place)}/800/600`;
+  return (await wikiThumb(place)) ?? (await wikiThumb(`${place}, ${country}`));
 }

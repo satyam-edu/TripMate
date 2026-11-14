@@ -8,7 +8,7 @@ import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
 import type { Trip } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, Skeleton, tagColor, formatDateRange, formatBudget, cn, tripPath } from '../components/ui-bits';
+import { Avatar, CoverImg, Skeleton, tagColor, formatDateRange, formatBudget, cn, tripPath } from '../components/ui-bits';
 
 const COVER = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&h=400&fit=crop&auto=format';
 
@@ -820,9 +820,6 @@ function ProfileTripCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const coverUrl =
-    trip.coverImage ||
-    `https://loremflickr.com/600/400/${encodeURIComponent(trip.destination.split(',')[0]?.trim() ?? 'travel')}/travel`;
   const tag = trip.tags[0];
   const spotsFilled = (trip._count?.requests ?? 0) + 1;
 
@@ -830,7 +827,7 @@ function ProfileTripCard({
     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-[0_4px_24px_rgba(15,23,42,0.05)] hover:shadow-[0_8px_40px_rgba(37,99,235,0.25)] hover:border-blue-400/50 transition-[box-shadow,border-color] duration-300">
       <div className="relative">
         <Link to={tripPath(trip)} className="block aspect-[16/10] bg-slate-100" tabIndex={-1} aria-hidden="true">
-          <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <CoverImg src={trip.coverImage} size={500} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
         </Link>
         {tag && (
           <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', tagColor(tag))}>

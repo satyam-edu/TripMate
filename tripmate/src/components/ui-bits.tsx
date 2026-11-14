@@ -1,4 +1,26 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ImgHTMLAttributes, type ReactNode } from 'react';
+
+/* ── Trip cover photo ───────────────────────────────────────────────────────── */
+// Bundled with the app, so it shows even when a cover link is missing or its host is down.
+const FALLBACK_COVER = '/travel-bg-poster.jpg';
+
+// `size` asks Wikipedia for a smaller copy (covers are stored at 960px) for small thumbnails.
+export function CoverImg({
+  src,
+  size,
+  ...props
+}: { src: string | null | undefined; size?: 330 | 500 } & Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'>) {
+  const url = !src ? FALLBACK_COVER : size ? src.replace('/960px-', `/${size}px-`) : src;
+  return (
+    <img
+      {...props}
+      src={url}
+      onError={(e) => {
+        if (!e.currentTarget.src.endsWith(FALLBACK_COVER)) e.currentTarget.src = FALLBACK_COVER;
+      }}
+    />
+  );
+}
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 export function cn(...classes: (string | false | null | undefined)[]): string {

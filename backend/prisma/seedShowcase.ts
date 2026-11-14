@@ -204,7 +204,7 @@ async function main(): Promise<void> {
         createdAt: ago(24 * Math.max(1, 30 - t.start)), // posted ~a month before it starts
       },
     });
-    console.log(`   🧭 ${t.title}${trip.coverImage?.includes('picsum') ? '  (no Wikipedia photo, random cover)' : ''}`);
+    console.log(`   🧭 ${t.title}${!trip.coverImage ? '  (no Wikipedia photo, app fallback cover)' : ''}`);
     return trip;
   };
   const request = (tripId: string, userId: string, status: RequestStatus, hoursAgo: number, i = 0) =>

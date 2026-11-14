@@ -3,7 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import type { Trip } from '../types';
 import api, { apiErrorMessage } from '../services/api';
 import { Calendar, Wallet, Users } from 'lucide-react';
-import { Avatar, cn, tagColor, formatDateRange, formatBudget, tripPath } from './ui-bits';
+import { Avatar, CoverImg, cn, tagColor, formatDateRange, formatBudget, tripPath } from './ui-bits';
 import { useAuth } from '../context/AuthContext';
 
 interface TripCardProps {
@@ -15,9 +15,6 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
   const { user } = useAuth();
   const isHost = currentUserId === trip.hostId;
   const canJoinWomenOnly = !trip.womenOnly || user?.gender === 'Woman';
-  const coverUrl =
-    trip.coverImage ||
-    `https://loremflickr.com/800/600/${encodeURIComponent(trip.destination.split(',')[0]?.trim() ?? 'travel')}/travel`;
   const tag = trip.tags[0];
   // Host occupies a spot, so filled = approved members + 1.
   const spotsFilled = (trip._count?.requests ?? 0) + 1;
@@ -104,7 +101,7 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
       {/* Cover */}
       <div className="relative">
         <Link to={tripPath(trip)} className="block aspect-[16/10] bg-[#F1F5F9]" tabIndex={-1} aria-hidden="true">
-          <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <CoverImg src={trip.coverImage} size={500} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
         </Link>
         {tag && (
           <span

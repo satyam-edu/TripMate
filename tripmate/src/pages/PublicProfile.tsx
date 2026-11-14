@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { BadgeCheck, Calendar, Compass, Flag, Link2, MapPin, MoreVertical, ShieldOff, Star, UserX, Wallet, X } from 'lucide-react';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
+import { Avatar, CoverImg, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
 
 /* ── Types (match GET /api/users/:id — private fields already stripped server-side) ── */
 interface PublicTrip {
@@ -290,8 +290,6 @@ export default function PublicProfile() {
 
 /* ── Trip card (read-only — links to the full trip page to join) ────────────── */
 function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean }) {
-  const coverUrl =
-    trip.coverImage || `https://loremflickr.com/600/400/${encodeURIComponent(trip.destination.split(',')[0]?.trim() ?? 'travel')}/travel`;
   const tag = trip.tags[0];
 
   return (
@@ -301,8 +299,9 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
     >
       <div className="relative">
         <div className="aspect-[16/10] bg-slate-100">
-          <img
-            src={coverUrl}
+          <CoverImg
+            src={trip.coverImage}
+            size={500}
             alt={trip.destination}
             className={cn('w-full h-full object-cover', isPast && 'grayscale-[40%] opacity-80')}
             loading="lazy"

@@ -50,7 +50,8 @@ function parseKind(value: unknown): ChatKind | null {
 async function buildChats(userId: string) {
   const latest = { orderBy: { createdAt: 'desc' as const }, take: 1, select: messageSelect };
 
-  const [trips, requests] = await Promise.all([
+  // Everything that only needs userId runs in one parallel round trip.
+  const [trips, requests, hidden, reads] = await Promise.all([
     prisma.trip.findMany({
       where: { OR: [{ hostId: userId }, { requests: { some: { userId, status: 'APPROVED' } } }] },
       include: {
@@ -66,26 +67,31 @@ async function buildChats(userId: string) {
         messages: latest,
       },
     }),
+    blockedUserIds(userId),
+    prisma.chatRead.findMany({ where: { userId } }),
   ]);
 
   // Drop inquiries with anyone blocked either-way — hides them from both sides' chat lists.
-  const hidden = await blockedUserIds(userId);
   const visibleRequests = requests.filter((r) => !hidden.has(r.userId === userId ? r.trip.host.id : r.user.id));
 
   // Unread = messages from others newer than when I last opened that chat.
-  // ponytail: one COUNT per chat; fine for a handful of chats, batch into one SQL query if lists get long.
-  const reads = await prisma.chatRead.findMany({ where: { userId } });
+  // One grouped COUNT for all chats (one OR branch per chat, each with its own last-read time).
   const lastRead = new Map(reads.map((r) => [r.chatKey, r.lastReadAt]));
-  const countUnread = (tripId: string, requestId: string | null, key: string) =>
-    prisma.message.count({
-      where: { tripId, requestId, senderId: { not: userId }, createdAt: { gt: lastRead.get(key) ?? new Date(0) } },
-    });
-  const [groupUnread, inquiryUnread] = await Promise.all([
-    Promise.all(trips.map((t) => countUnread(t.id, null, chatKey('groups', t.id)))),
-    Promise.all(visibleRequests.map((r) => countUnread(r.tripId, r.id, chatKey('inquiries', r.id)))),
-  ]);
+  const since = (key: string) => ({ gt: lastRead.get(key) ?? new Date(0) });
+  const counts = await prisma.message.groupBy({
+    by: ['tripId', 'requestId'],
+    where: {
+      senderId: { not: userId },
+      OR: [
+        ...trips.map((t) => ({ tripId: t.id, requestId: null, createdAt: since(chatKey('groups', t.id)) })),
+        ...visibleRequests.map((r) => ({ requestId: r.id, createdAt: since(chatKey('inquiries', r.id)) })),
+      ],
+    },
+    _count: { _all: true },
+  });
+  const unreadBy = new Map(counts.map((c) => [c.requestId ?? `trip:${c.tripId}`, c._count._all]));
 
-  const groups = trips.map((t, i) => ({
+  const groups = trips.map((t) => ({
     kind: 'groups' as const,
     id: t.id,
     title: t.destination,
@@ -95,11 +101,11 @@ async function buildChats(userId: string) {
     spotsFilled: t._count.requests + 1, // host takes a spot
     maxGuests: t.maxGuests,
     lastMessage: t.messages[0] ?? null,
-    unread: groupUnread[i]!,
+    unread: unreadBy.get(`trip:${t.id}`) ?? 0,
     activityAt: t.messages[0]?.createdAt ?? t.createdAt,
   }));
 
-  const inquiries = visibleRequests.map((r, i) => {
+  const inquiries = visibleRequests.map((r) => {
     const other = r.userId === userId ? r.trip.host : r.user;
     // The join pitch acts as the first message until someone replies.
     const pitch = r.message ? { id: `pitch-${r.id}`, text: r.message, createdAt: r.createdAt, sender: r.user } : null;
@@ -112,7 +118,7 @@ async function buildChats(userId: string) {
       status: r.status,
       destination: r.trip.destination,
       lastMessage,
-      unread: inquiryUnread[i]!,
+      unread: unreadBy.get(r.id) ?? 0,
       activityAt: lastMessage?.createdAt ?? r.createdAt,
     };
   });

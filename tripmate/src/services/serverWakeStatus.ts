@@ -5,7 +5,8 @@
 // drive it — components read it through the useServerWaking hook below.
 import { useEffect, useState } from 'react';
 
-const WAKE_THRESHOLD_MS = 4000;
+// A real cold start takes 30-50s; normal slow requests (a few seconds) shouldn't trigger the banner.
+const WAKE_THRESHOLD_MS = 10000;
 let slowRequestCount = 0;
 let waking = false;
 const listeners = new Set<(waking: boolean) => void>();

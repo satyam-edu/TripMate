@@ -302,9 +302,9 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
           <CoverImg
             src={trip.coverImage}
             size={500}
+            sizes="(min-width: 1280px) 300px, (min-width: 640px) 45vw, 92vw"
             alt={trip.destination}
             className={cn(CARD_IMG, isPast && 'grayscale-[40%] opacity-80')}
-            loading="lazy"
           />
         </div>
         {tag && (
@@ -439,9 +439,21 @@ function ProfileSkeleton() {
   return (
     <div className="max-w-4xl mx-auto">
       <Skeleton className="h-40 sm:h-52 rounded-3xl" />
-      <div className="mt-12 px-1 space-y-3">
+      <div className="-mt-10 px-4 sm:px-6 flex items-end gap-4">
+        <Skeleton className="w-24 h-24 rounded-full border-4 border-white" />
+      </div>
+      <div className="mt-4 px-1 space-y-3">
         <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-4 w-64 max-w-full" />
+        <Skeleton className="h-4 w-52 max-w-full" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i}>
+            <Skeleton className="aspect-[16/10]" />
+            <Skeleton className="h-4 w-40 mt-3" />
+          </div>
+        ))}
       </div>
     </div>
   );

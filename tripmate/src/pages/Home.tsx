@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api, { cachedGet } from '../services/api';
@@ -6,23 +6,15 @@ import type { Trip } from '../types';
 import type { AuthUser } from '../context/AuthContext';
 import TripCard from '../components/TripCard';
 import HeroSearch from '../components/HeroSearch';
+import { wikiSrcSet } from '../services/images';
+import { trendingNow, seasonOf, monthName } from '../services/seasonalTrending';
 import { Avatar, SectionHeader, Skeleton, EmptyState, ErrorState, cn } from '../components/ui-bits';
 import { Bell, Compass, UserPlus, Check, X, Star, Plus } from 'lucide-react';
 import { getSocket } from '../services/socket';
 
-/* ── Mock content (no API yet, same as prior Home) ─────────────────────────── */
-const TRENDING: { name: string; image: string }[] = [
-  { name: 'Goa', image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=400&h=300&fit=crop&auto=format' },
-  { name: 'Manali', image: 'https://images.unsplash.com/photo-1593181629936-11c609b8db9b?w=400&h=300&fit=crop&auto=format' },
-  { name: 'Spiti', image: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=400&h=300&fit=crop&auto=format' },
-  { name: 'Kerala', image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=400&h=300&fit=crop&auto=format' },
-  { name: 'Hampi', image: 'https://images.unsplash.com/photo-1620766182966-c6eb5ed2b788?w=400&h=300&fit=crop&auto=format' },
-  { name: 'Ladakh', image: 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?w=400&h=300&fit=crop&auto=format' },
-];
 
 
 
-const HERO_IMG = 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?w=1400&h=500&fit=crop&auto=format';
 
 /* ── Notifications (real: GET /api/notifications + live socket push) ───────── */
 type NotificationType = 'NEW_REQUEST' | 'REQUEST_APPROVED' | 'REQUEST_DECLINED' | 'REVIEW_RECEIVED';
@@ -36,9 +28,9 @@ interface AppNotification {
 }
 const NOTI_META: Record<NotificationType, { Icon: typeof UserPlus; bg: string; fg: string }> = {
   NEW_REQUEST: { Icon: UserPlus, bg: 'bg-blue-50', fg: 'text-blue-600' },
-  REQUEST_APPROVED: { Icon: Check, bg: 'bg-emerald-50', fg: 'text-emerald-600' },
-  REQUEST_DECLINED: { Icon: X, bg: 'bg-red-50', fg: 'text-red-500' },
-  REVIEW_RECEIVED: { Icon: Star, bg: 'bg-amber-50', fg: 'text-amber-600' },
+  REQUEST_APPROVED: { Icon: Check, bg: 'bg-blue-50', fg: 'text-blue-600' },
+  REQUEST_DECLINED: { Icon: X, bg: 'bg-[#F3F3F3]', fg: 'text-[#6A6A6A]' },
+  REVIEW_RECEIVED: { Icon: Star, bg: 'bg-[#F3F3F3]', fg: 'text-[#222222]' },
 };
 
 // "just now", "5m ago", "3h ago", "2d ago", then a date.
@@ -101,12 +93,14 @@ function HomeFeed({
   const setSearchQuery = (q: string) => setFilters((f) => ({ ...f, q }));
   const firstName = user?.name?.split(' ')[0] ?? 'there';
   const isSearching = searchQuery.trim().length > 0;
+  const trending = useMemo(() => trendingNow(), []); // re-ranked from today's date on every visit
+  const season = seasonOf();
   const filteredTrips = trips;
 
   return (
     <div className="pb-28 lg:pb-10">
       {/* Greeting + notifications */}
-      <header className="flex items-center justify-between gap-4 mb-6">
+      <header className="flex items-center justify-between gap-4 mb-5 sm:mb-6">
         <div className="flex items-center gap-3 min-w-0">
           <Avatar src={user?.avatar ?? null} name={user?.name ?? 'Traveller'} size={46} />
           <div className="leading-tight min-w-0">
@@ -130,23 +124,8 @@ function HomeFeed({
         </div>
       </header>
 
-      {/* Banner with the search built in (image layer clips itself, so search popovers can overhang) */}
-      <div className="relative mb-10">
-        <div className="absolute inset-0 overflow-hidden rounded-3xl bg-[#0F172A]">
-          <img src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A]/85 via-[#0F172A]/45 to-[#0F172A]/10" />
-        </div>
-        <div className="relative p-6 sm:p-8 lg:p-10">
-          <h1 className="tracking-tight leading-[1.08]" style={{ fontSize: 34, fontWeight: 600 }}>
-            <span className="text-white">Where will you </span>
-            <span className="text-[#93C5FD]">go next?</span>
-          </h1>
-          <p className="text-white/80 mt-2 max-w-md" style={{ fontSize: 15 }}>
-            Discover groups forming now across India and join the journey.
-          </p>
-          <HeroSearch filters={filters} setFilters={setFilters} trips={trips} places={TRENDING.map((d) => d.name)} />
-        </div>
-      </div>
+      {/* Search: one bar (place | dates | budget) */}
+      <HeroSearch filters={filters} setFilters={setFilters} trips={trips} places={trending.map((d) => d.search)} />
 
       {view === 'loading' && <HomeSkeleton />}
       {view === 'error' && <ErrorState onRetry={onRetry} />}
@@ -164,18 +143,28 @@ function HomeFeed({
         <>
           {/* Trending destinations: hidden while searching. Tap one to search it. */}
           {!isSearching && (
-            <section className="mb-12">
-              <SectionHeader title="Trending destinations" />
-              <p className="text-[#6A6A6A] text-sm -mt-3 mb-5">Tap a place to see the groups heading there.</p>
+            <section className="mb-9 sm:mb-12">
+              <SectionHeader title={`Trending this ${season}`} />
+              <p className="text-[#6A6A6A] text-sm -mt-3 mb-4 sm:mb-5">Best places to go in {monthName()}. Tap one to see the groups heading there.</p>
               <div className="flex lg:grid lg:grid-cols-6 gap-3 overflow-x-auto scrollbar-none pb-1">
-                {TRENDING.map((d) => (
+                {trending.map((d) => (
                   <button
                     key={d.name}
                     type="button"
-                    onClick={() => setSearchQuery(d.name)}
-                    className="relative shrink-0 w-36 lg:w-auto aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100"
+                    onClick={() => setSearchQuery(d.search)}
+                    className="relative shrink-0 w-32 sm:w-36 lg:w-auto aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100"
                   >
-                    <img src={d.image} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                    <img
+                      src={d.image}
+                      srcSet={wikiSrcSet(d.image)}
+                      sizes="(min-width: 1024px) 180px, 144px"
+                      alt=""
+                      width={400}
+                      height={300}
+                      decoding="async"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      loading="lazy"
+                    />
                     <span className="absolute bottom-2 left-2 bg-white/95 text-[#222222] rounded-full px-2.5 py-1 text-xs font-medium">
                       {d.name}
                     </span>
@@ -186,7 +175,7 @@ function HomeFeed({
           )}
 
           {/* Groups forming now (real data), always visible */}
-          <section className="mb-12">
+          <section className="mb-10 sm:mb-12">
             <SectionHeader title={isSearching ? `Results for "${searchQuery.trim()}"` : 'Groups Forming Now'} />
             {filteredTrips.length === 0 ? (
               <div className="text-center py-12">
@@ -203,9 +192,9 @@ function HomeFeed({
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
-                  {filteredTrips.map((t) => (
-                    <TripCard key={t.id} trip={t} currentUserId={currentUserId} />
+                <div className="grid grid-cols-2 xl:grid-cols-3 gap-x-3 sm:gap-x-6 gap-y-7 sm:gap-y-10">
+                  {filteredTrips.map((t, i) => (
+                    <TripCard key={t.id} trip={t} currentUserId={currentUserId} priority={i < 2} />
                   ))}
                 </div>
                 {hasMore && (
@@ -237,6 +226,8 @@ function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [closing, setClosing] = useState(false);
+  const [tab, setTab] = useState<'all' | 'unread'>('all');
 
   useEffect(() => {
     api
@@ -277,12 +268,28 @@ function NotificationsBell() {
     navigate(n.link);
   };
 
+  const close = () => {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 160);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  const shown = tab === 'unread' ? notifications.filter((n) => !n.read) : notifications;
+
   return (
     <div className="relative shrink-0">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? close() : setOpen(true))}
         aria-label={unread > 0 ? `Notifications (${unread} unread)` : 'Notifications'}
+        aria-expanded={open}
         className="relative w-11 h-11 rounded-full bg-white border border-[#DDDDDD] flex items-center justify-center text-[#6A6A6A] hover:text-[#2563EB] transition-colors"
       >
         <Bell size={20} />
@@ -295,26 +302,53 @@ function NotificationsBell() {
 
       {open && (
         <>
-          {/* click-outside backdrop */}
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-[#DDDDDD] rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.16)] z-50 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-              <p className="text-[#222222] font-semibold text-sm">Notifications</p>
-              {unread > 0 && (
-                <button
-                  type="button"
-                  onClick={markAllRead}
-                  className="text-[#2563EB] text-xs font-semibold hover:text-[#1D4ED8] transition-colors"
-                >
-                  Mark all as read
+          {/* backdrop: dims on phones, invisible click-away on larger screens */}
+          <div className={cn('fixed inset-0 z-40')} onClick={close} />
+          <div
+            role="dialog"
+            aria-label="Notifications"
+            className={cn(
+              'z-50 bg-white flex flex-col overflow-hidden',
+              'absolute right-0 top-full mt-3 w-[min(24rem,calc(100vw-2rem))] max-h-[min(34rem,calc(100dvh-9rem))] rounded-2xl border border-[#DDDDDD] shadow-[0_16px_48px_rgba(15,23,42,0.18)]',
+              closing ? 'noti-out' : 'noti-in',
+            )}
+          >
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+              <h2 className="text-[#222222] text-lg font-bold">Notifications</h2>
+              <div className="flex items-center gap-1">
+                {unread > 0 && (
+                  <button type="button" onClick={markAllRead} className="text-[#2563EB] text-[13px] font-medium rounded-full px-2.5 py-1.5 hover:bg-[#EFF6FF] transition-colors">
+                    Mark all read
+                  </button>
+                )}
+                <button type="button" onClick={close} aria-label="Close notifications" className="w-8 h-8 rounded-full flex items-center justify-center text-[#6A6A6A] hover:bg-[#F7F7F7]">
+                  <X size={18} />
                 </button>
-              )}
+              </div>
             </div>
-            <div className="max-h-80 overflow-y-auto">
-              {notifications.length === 0 ? (
-                <p className="text-[#6A6A6A] text-sm text-center py-8">You're all caught up 🎉</p>
+            <div className="flex gap-2 px-5 pb-3">
+              {(['all', 'unread'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  className={cn('rounded-full px-3.5 py-1.5 text-[13px] border transition-colors', tab === t ? 'bg-[#222222] border-[#222222] text-white' : 'border-[#DDDDDD] text-[#222222] hover:border-[#222222]')}
+                >
+                  {t === 'all' ? 'All' : `Unread${unread ? ` · ${unread}` : ''}`}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain border-t border-[#EBEBEB] px-2 py-2">
+              {shown.length === 0 ? (
+                <div className="flex flex-col items-center text-center py-10 px-6">
+                  <span className="w-12 h-12 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#6A6A6A] mb-3">
+                    <Bell size={20} />
+                  </span>
+                  <p className="text-[#222222] text-sm font-medium">{tab === 'unread' ? 'Nothing unread' : "You're all caught up"}</p>
+                  <p className="text-[#6A6A6A] text-[13px] mt-1">New requests and reviews will show up here.</p>
+                </div>
               ) : (
-                notifications.map((n) => <NotificationRow key={n.id} n={n} onOpen={() => openNotification(n)} />)
+                shown.map((n) => <NotificationRow key={n.id} n={n} onOpen={() => openNotification(n)} />)
               )}
             </div>
           </div>
@@ -328,52 +362,44 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: () => void
   const meta = NOTI_META[n.type];
   const Icon = meta.Icon;
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        'w-full text-left flex items-start gap-3 px-4 py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors',
-        !n.read && 'bg-blue-50/60',
-      )}
-    >
-      <span className={cn('w-9 h-9 rounded-full flex items-center justify-center shrink-0', meta.bg)}>
-        <Icon size={16} className={meta.fg} />
+    <button type="button" onClick={onOpen} className="w-full text-left flex items-start gap-3 rounded-xl px-3 py-3 hover:bg-[#F7F7F7] active:bg-[#F7F7F7] transition-colors">
+      <span className={cn('w-10 h-10 rounded-full flex items-center justify-center shrink-0', meta.bg)}>
+        <Icon size={17} className={meta.fg} />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[#334155] text-[13px] leading-snug">{n.text}</p>
-        <p className="text-[#6A6A6A] text-[11px] mt-0.5">{timeAgo(n.createdAt)}</p>
+        <p className={cn('text-[#222222] text-[14px] leading-snug', !n.read && 'font-medium')}>{n.text}</p>
+        <p className={cn('text-[12px] mt-1', n.read ? 'text-[#6A6A6A]' : 'text-[#2563EB]')}>{timeAgo(n.createdAt)}</p>
       </div>
-      {!n.read && <span className="w-2 h-2 rounded-full bg-[#2563EB] shrink-0 mt-1.5" />}
+      {!n.read && <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] shrink-0 mt-1.5" />}
     </button>
   );
 }
 
 function HomeSkeleton() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <Skeleton className="h-6 w-44 mb-4" />
-        <div className="flex gap-5">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex flex-col items-center gap-2">
-              <Skeleton className="w-[72px] h-[72px] rounded-full" />
-              <Skeleton className="h-3 w-12" />
-            </div>
+        <Skeleton className="h-7 w-56 mb-2" />
+        <Skeleton className="h-4 w-72 max-w-full mb-4" />
+        <div className="flex gap-3 sm:gap-4 overflow-hidden">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="shrink-0 w-[150px] sm:w-[218px] aspect-[4/3] rounded-2xl" />
           ))}
         </div>
       </div>
       <div>
-        <Skeleton className="h-6 w-48 mb-4" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
-          {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton className="h-7 w-48 mb-4" />
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-x-3 sm:gap-x-6 gap-y-7 sm:gap-y-10">
+          {Array.from({ length: 6 }).map((_, i) => (
             <div key={i}>
-              <Skeleton className="aspect-[16/10] rounded-2xl" />
+              <Skeleton className="aspect-[4/3] sm:aspect-[16/10] rounded-2xl" />
               <div className="pt-3 space-y-2">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-3 w-3/5" />
+                <Skeleton className="h-3 w-2/5" />
                 <div className="flex justify-between items-center pt-2">
-                  <Skeleton className="h-7 w-24 rounded-full" />
-                  <Skeleton className="h-9 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-6 sm:w-24 rounded-full" />
+                  <Skeleton className="h-8 w-16 rounded-full" />
                 </div>
               </div>
             </div>

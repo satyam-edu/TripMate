@@ -285,7 +285,7 @@ export const getTrip = async (req: Request, res: Response): Promise<void> => {
         requests: {
           where: { status: 'APPROVED' },
           orderBy: { createdAt: 'asc' },
-          select: { user: { select: { id: true, name: true, avatar: true } } },
+          select: { id: true, user: { select: { id: true, name: true, avatar: true } } },
         },
       },
     });
@@ -300,7 +300,8 @@ export const getTrip = async (req: Request, res: Response): Promise<void> => {
     });
 
     const { requests, ...rest } = trip;
-    res.status(200).json({ ...rest, members: requests.map((r) => r.user), myRequest });
+    res.status(200).json({ ...rest, // requestId lets the host remove a traveller; only the host gets it
+      members: requests.map((r) => ({ ...r.user, ...(trip.hostId === userId ? { requestId: r.id } : {}) })), myRequest });
   } catch (error) {
     console.error('[getTrip]', error);
     res.status(500).json({ error: 'Internal server error.' });

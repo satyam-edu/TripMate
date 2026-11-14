@@ -239,8 +239,10 @@ export const updateRequestStatus = async (req: Request, res: Response): Promise<
 export const cancelRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params['id'] as string;
-    const existing = await prisma.request.findUnique({ where: { id } });
-    if (!existing || existing.userId !== req.userId) {
+    // The traveller can withdraw their own request / leave the trip; the trip's host can remove a traveller.
+    // Either way the request row is deleted, which also ends their access to the group chat.
+    const existing = await prisma.request.findUnique({ where: { id }, include: { trip: { select: { hostId: true } } } });
+    if (!existing || (existing.userId !== req.userId && existing.trip.hostId !== req.userId)) {
       res.status(404).json({ error: 'Request not found.' });
       return;
     }

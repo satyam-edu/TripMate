@@ -813,10 +813,10 @@ function ProfileTripCard({
   const spotsFilled = (trip._count?.requests ?? 0) + 1;
 
   return (
-    <div className="relative">
+    <div className="relative flex flex-col h-full">
       <div className="relative">
         <Link to={tripPath(trip)} className={CARD_FRAME} tabIndex={-1} aria-hidden="true">
-          <CoverImg src={trip.coverImage} size={500} alt="" className={CARD_IMG} loading="lazy" decoding="async" />
+          <CoverImg src={trip.coverImage} size={500} sizes="(min-width: 1280px) 300px, (min-width: 640px) 45vw, 92vw" alt="" className={CARD_IMG} />
         </Link>
         {tag && (
           <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', TAG_STYLE)}>
@@ -828,46 +828,45 @@ function ProfileTripCard({
           {spotsFilled}/{trip.maxGuests}
         </span>
       </div>
-      <div className="pt-3">
-        <div className="flex items-start justify-between gap-2 mb-0.5">
-          <div className="flex items-start gap-1.5 min-w-0">
-            <Link to={tripPath(trip)} className={cn('text-base leading-snug font-semibold line-clamp-2 break-words', TEXT_STRONG, "after:absolute after:inset-0 after:content-['']")}>
-              {trip.destination}
-            </Link>
-          </div>
-          <span
-            className={cn(
-              'shrink-0 mt-0.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
-              kind === 'hosted' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600',
-            )}
-          >
-            {kind === 'hosted' ? 'Hosting' : 'Joined'}
-          </span>
-        </div>
+      <div className="pt-3 flex flex-col flex-1">
+        <Link to={tripPath(trip)} className={cn('text-base leading-snug font-semibold line-clamp-2 break-words mb-0.5', TEXT_STRONG, "after:absolute after:inset-0 after:content-['']")}>
+          {trip.destination}
+        </Link>
         <TripMeta trip={trip} />
-        {kind === 'hosted' && !!trip.pendingCount && (
-          <Link
-            to="/requests"
-            className="relative z-10 flex items-center gap-1.5 mt-3 rounded-full bg-amber-50 text-amber-600 px-3 py-1.5 text-[13px] font-semibold w-fit hover:bg-amber-100 transition-colors"
-          >
-            <Users size={13} /> {trip.pendingCount} {trip.pendingCount === 1 ? 'person' : 'people'} waiting
-          </Link>
-        )}
+
+        {/* Group progress */}
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-[13px] mb-1.5">
+            <span className="text-[#6A6A6A]">
+              {spotsFilled} of {trip.maxGuests} spots filled
+            </span>
+            {kind === 'hosted' && !!trip.pendingCount && (
+              <Link to="/requests" className="relative z-10 inline-flex items-center gap-1.5 font-medium text-[#2563EB] hover:underline underline-offset-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+                {trip.pendingCount} waiting
+              </Link>
+            )}
+          </div>
+          <div className="h-1 rounded-full bg-[#EBEBEB] overflow-hidden">
+            <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${Math.min(100, (spotsFilled / Math.max(1, trip.maxGuests)) * 100)}%` }} />
+          </div>
+        </div>
+
         {kind === 'hosted' && (
-          <div className="flex gap-2 mt-4">
+          <div className="grid grid-cols-2 gap-2 mt-auto pt-4">
             <button
               type="button"
               onClick={onEdit}
-              className="relative z-10 flex items-center gap-1.5 border border-[#DDDDDD] text-[#6A6A6A] rounded-full px-4 py-1.5 text-[13px] font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
+              className="relative z-10 flex items-center justify-center gap-1.5 h-10 border border-[#222222] text-[#222222] rounded-full text-[13px] font-medium hover:bg-[#F7F7F7] transition-colors"
             >
-              <Pencil size={13} /> Edit
+              <Pencil size={14} /> Edit
             </button>
             <button
               type="button"
               onClick={onDelete}
-              className="relative z-10 flex items-center gap-1.5 border border-[#DDDDDD] text-[#6A6A6A] rounded-full px-4 py-1.5 text-[13px] font-semibold hover:border-red-500 hover:text-red-500 transition-colors"
+              className="relative z-10 flex items-center justify-center gap-1.5 h-10 border border-[#DDDDDD] text-[#6A6A6A] rounded-full text-[13px] font-medium hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
             >
-              <Trash2 size={13} /> Delete
+              <Trash2 size={14} /> Delete
             </button>
           </div>
         )}

@@ -28,7 +28,7 @@ const VIBES: { label: string; icon: typeof Mountain }[] = [
 ];
 
 const PREVIEW_COVER =
-  'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=800&h=600&fit=crop&auto=format';
+  'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=600&h=450&fit=crop&auto=format&q=75';
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    POST TAB  (V2 design, translated to Tailwind, real engine grafted in)

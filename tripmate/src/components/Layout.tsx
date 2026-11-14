@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import api from '../services/api';
 import { Home, PlusCircle, Inbox, MessageCircle, User, LogOut } from 'lucide-react';
 import { Avatar, cn } from './ui-bits';
@@ -19,6 +19,12 @@ const items: { to: string; label: string; icon: typeof Home; end?: boolean }[] =
 export function AppShell() {
   const { user, logout } = useAuth();
 
+  const { pathname } = useLocation();
+  const navType = useNavigationType();
+  // A new page starts at the top (the window keeps its old scroll otherwise); Back/Forward keep their place.
+  useLayoutEffect(() => {
+    if (navType !== 'POP') window.scrollTo(0, 0);
+  }, [pathname, navType]);
   // Warm the cache for the other sections (same urls the pages request), so their
   // first open shows data straight away instead of a skeleton. Short delay lets the
   // current page's own request go first.
@@ -39,7 +45,9 @@ export function AppShell() {
         <Sidebar user={user} onLogout={logout} />
         <main className="flex-1 min-w-0">
           <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-10 py-6 lg:py-8">
-            <Outlet />
+            <div key={pathname} className="page-in">
+              <Outlet />
+            </div>
           </div>
         </main>
         <BottomNav />
@@ -86,7 +94,7 @@ function Sidebar({ user, onLogout }: { user: AuthUser | null; onLogout: () => vo
           aria-label="TripMate home"
           className="w-11 h-11 rounded-full shrink-0 ring-2 ring-white/80 overflow-hidden"
         >
-          <img src="/logo.png" alt="" className="w-full h-full object-cover" />
+          <img src="/logo-128.webp" alt="" width={44} height={44} className="w-full h-full object-cover" />
         </NavLink>
 
         {/* Main icons, vertically centred like the design */}
@@ -132,7 +140,7 @@ function Sidebar({ user, onLogout }: { user: AuthUser | null; onLogout: () => vo
                       {it.to === '/chats' && (
                         <UnreadBadge
                           count={unreadTotal}
-                          className="absolute -top-2.5 -right-3 ring-2 ring-[#2563EB]"
+                          className="absolute -top-2.5 -right-3"
                         />
                       )}
                     </span>
@@ -185,11 +193,37 @@ function RailTooltip({ label }: { label: string }) {
 }
 
 /* ── Mobile floating bottom nav ─────────────────────────────────────────────── */
+// Big at the top and when you scroll up; shrinks to a slim bar while you scroll down (like Instagram's tab bar).
+function useCompactOnScrollDown(page: string): boolean {
+  // Remembered together with the page it was set on, so opening a new page starts big again.
+  const [state, setState] = useState({ page, compact: false });
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y < 40) setState({ page, compact: false });
+      else if (y - last > 8) setState({ page, compact: true });
+      else if (last - y > 8) setState({ page, compact: false });
+      if (Math.abs(y - last) > 8) last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [page]);
+  return state.page === page && state.compact;
+}
+
 function BottomNav() {
   const { unreadTotal } = useChatAlerts();
+  const { pathname } = useLocation();
+  const compact = useCompactOnScrollDown(pathname);
   return (
-    <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40">
-      <nav className="flex items-center gap-1 bg-white/95 backdrop-blur-md border border-[#DDDDDD] rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(15,23,42,0.12)]">
+    <div className="lg:hidden fixed bottom-1 left-1/2 -translate-x-1/2 z-40">
+      <nav
+        className={cn(
+          'flex items-center bg-white/95 backdrop-blur-md border border-[#DDDDDD] rounded-full shadow-[0_8px_30px_rgba(15,23,42,0.12)] transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)]',
+          compact ? 'gap-0.5 px-1.5 py-1.5' : 'gap-0.5 px-2 py-2',
+        )}
+      >
         {items.map((it) => {
           const Icon = it.icon;
           return (
@@ -200,14 +234,23 @@ function BottomNav() {
               aria-label={it.to === '/chats' && unreadTotal > 0 ? `${it.label} (${unreadTotal} unread)` : it.label}
               className={({ isActive }) =>
                 cn(
-                  'relative w-11 h-11 rounded-full flex items-center justify-center transition-all',
+                  'relative flex flex-col items-center justify-center rounded-full transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)]',
+                  compact ? 'w-10 h-10 gap-0' : 'w-[clamp(54px,16.5vw,62px)] h-[48px] gap-0.5',
                   isActive ? 'bg-[#2563EB] text-white shadow-md shadow-blue-300' : 'text-[#6A6A6A]',
                 )
               }
             >
               {({ isActive }) => (
                 <>
-                  <Icon size={21} strokeWidth={isActive ? 2.4 : 2} />
+                  <Icon size={compact ? 19 : 20} strokeWidth={isActive ? 2.4 : 2} className="transition-all duration-[350ms]" />
+                  <span
+                    className={cn(
+                      'text-[10px] tracking-tight font-medium leading-none transition-all duration-[350ms] overflow-hidden',
+                      compact ? 'max-h-0 opacity-0' : 'max-h-3 opacity-100',
+                    )}
+                  >
+                    {it.label}
+                  </span>
                   {it.to === '/chats' && (
                     <UnreadBadge count={unreadTotal} className="absolute -top-0.5 -right-0.5 ring-2 ring-white" />
                   )}

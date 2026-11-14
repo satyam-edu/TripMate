@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, MapPin, Compass, Clock, Calendar, Wallet } from 'lucide-react';
+import { Search, X, MapPin, Compass, Clock, Calendar, Wallet, ArrowLeft } from 'lucide-react';
 import type { Trip } from '../types';
 import type { FeedFilters } from '../pages/Home';
 import { cn } from './ui-bits';
@@ -73,6 +73,7 @@ export default function HeroSearch({
   const [open, setOpen] = useState<Open>(null);
   const [recents, setRecents] = useState<string[]>(loadRecents);
   const [active, setActive] = useState(-1);
+  const [sheet, setSheet] = useState(false); // phone: full-screen search
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const set = (patch: Partial<FeedFilters>) => setFilters((f) => ({ ...f, ...patch }));
@@ -86,6 +87,15 @@ export default function HeroSearch({
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
+
+  useEffect(() => {
+    if (!sheet) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [sheet]);
 
   // ── Suggestions ─────────────────────────────────────────────────────────────
   const sections = useMemo(() => {
@@ -148,13 +158,14 @@ export default function HeroSearch({
       'rounded-full border px-3.5 py-1.5 text-sm transition-colors',
       on ? 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB] font-medium' : 'border-[#DDDDDD] hover:border-[#222222]',
     );
-  const field = 'w-full bg-white border border-[#B0B0B0] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#222222]';
+  // min-w-0 + block: iOS date inputs have a wide built-in size and would otherwise spill out of the popup
+  const field = 'block w-full min-w-0 max-w-full h-11 sm:h-10 bg-white border border-[#B0B0B0] rounded-lg px-3 text-base sm:text-sm outline-none focus:border-[#222222] appearance-none';
 
   return (
-    <div ref={wrapRef} className="relative mt-6 max-w-3xl">
-      <div className="bg-white rounded-2xl p-2 flex flex-col sm:flex-row sm:items-center gap-2 shadow-[0_10px_30px_rgba(15,23,42,0.25)]">
+    <div ref={wrapRef} className="relative mb-7 sm:mb-8">
+      <div className="hidden sm:flex sm:flex-row sm:items-stretch bg-white border border-[#DDDDDD] rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/20 transition">
         {/* Where */}
-        <label className="flex-1 min-w-0 flex items-center gap-2.5 px-3 py-2.5 cursor-text">
+        <label className="flex-1 min-w-0 flex items-center gap-2.5 px-4 py-3.5 cursor-text">
           <Search size={18} className="text-[#2563EB] shrink-0" />
           <input
             ref={inputRef}
@@ -166,8 +177,8 @@ export default function HeroSearch({
             }}
             onFocus={() => setOpen('where')}
             onKeyDown={onKeyDown}
-            placeholder="Search a place, state or trip name"
-            className="flex-1 min-w-0 bg-transparent outline-none text-[15px] text-[#222222] placeholder:text-[#6A6A6A]"
+            placeholder="Where to? Search a place, state or trip"
+            className="flex-1 min-w-0 bg-transparent outline-none text-base sm:text-[15px] text-[#222222] placeholder:text-[#6A6A6A]"
             role="combobox"
             aria-expanded={open === 'where'}
             aria-autocomplete="list"
@@ -188,7 +199,7 @@ export default function HeroSearch({
         </label>
 
         {/* When / Budget */}
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 sm:flex border-t sm:border-t-0 sm:border-l border-[#EBEBEB] divide-x divide-[#EBEBEB]">
           {(
             [
               { key: 'dates', icon: <Calendar size={15} />, label: datesLabel, on: datesOn },
@@ -201,9 +212,9 @@ export default function HeroSearch({
               onClick={() => setOpen(open === c.key ? null : c.key)}
               aria-expanded={open === c.key}
               className={cn(
-                'flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm whitespace-nowrap transition-colors',
-                c.on ? 'bg-[#EFF6FF] text-[#2563EB] font-medium' : 'bg-[#F3F4F6] text-[#222222] hover:bg-[#E5E7EB]',
-                open === c.key && 'ring-2 ring-[#2563EB]/40',
+                'flex items-center justify-center gap-1.5 px-4 py-3 text-sm whitespace-nowrap transition-colors hover:bg-[#F7F7F7] last:rounded-br-2xl first:rounded-bl-2xl sm:first:rounded-bl-none sm:last:rounded-r-2xl',
+                c.on ? 'text-[#2563EB] font-medium' : 'text-[#222222]',
+                open === c.key && 'bg-[#F7F7F7]',
               )}
             >
               {c.icon} {c.label}
@@ -211,6 +222,121 @@ export default function HeroSearch({
           ))}
         </div>
       </div>
+
+      {/* Phone: compact bar that opens a full-screen search */}
+      <div className="sm:hidden bg-white border border-[#DDDDDD] rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.06)] overflow-hidden">
+        <button type="button" onClick={() => setSheet(true)} className="w-full flex items-center gap-2.5 px-4 py-3.5 text-left">
+          <Search size={18} className="text-[#2563EB] shrink-0" />
+          <span className={cn('flex-1 truncate text-[15px]', q ? 'text-[#222222]' : 'text-[#6A6A6A]')}>{q || 'Where to? Search a place, state or trip'}</span>
+        </button>
+      </div>
+
+      {sheet && (
+        <div className="sm:hidden fixed inset-0 z-50 bg-white flex flex-col" role="dialog" aria-modal="true" aria-label="Search trips">
+          <div className="flex items-center gap-2 px-3 py-3 border-b border-[#EBEBEB]">
+            <button type="button" onClick={() => setSheet(false)} aria-label="Close search" className="w-10 h-10 rounded-full flex items-center justify-center active:bg-[#F7F7F7]">
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex-1 min-w-0 flex items-center gap-2 h-11 rounded-xl border border-[#B0B0B0] px-3 focus-within:border-[#2563EB]">
+              <Search size={16} className="text-[#2563EB] shrink-0" />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => set({ q: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && (submit(), setSheet(false))}
+                enterKeyHint="search"
+                placeholder="Place, state or trip"
+                className="flex-1 min-w-0 bg-transparent outline-none text-base text-[#222222] placeholder:text-[#6A6A6A]"
+              />
+              {q && (
+                <button type="button" onClick={() => set({ q: '' })} aria-label="Clear search" className="text-[#6A6A6A]">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
+            {sections.map((sec) => (
+              <div key={sec.title || 'q'} className="pt-3">
+                {sec.title && <p className="pb-1 text-xs font-medium text-[#6A6A6A]">{sec.title}</p>}
+                {sec.rows.map((row) => {
+                  const Icon = row.kind === 'recent' ? Clock : row.kind === 'trip' ? Compass : row.kind === 'query' ? Search : MapPin;
+                  return (
+                    <button
+                      key={`${row.kind}-${row.text}`}
+                      type="button"
+                      onClick={() => {
+                        pick(row.text);
+                        setSheet(false);
+                      }}
+                      className="w-full flex items-center gap-3 py-2.5 text-left text-[15px] active:bg-[#F7F7F7]"
+                    >
+                      <span className="w-9 h-9 rounded-lg bg-[#F3F4F6] flex items-center justify-center shrink-0">
+                        <Icon size={16} />
+                      </span>
+                      <span className="truncate">{row.kind === 'query' ? `Search for “${row.text}”` : row.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+
+            <div className="mt-6 pt-5 border-t border-[#EBEBEB]">
+              <p className="text-[15px] font-medium mb-3">When are you free?</p>
+              <div className="flex flex-wrap gap-2">
+                {datePresets().map((p) => (
+                  <button key={p.label} type="button" onClick={() => set(startDate === p.start && endDate === p.end ? { startDate: '', endDate: '' } : { startDate: p.start, endDate: p.end })} className={chip(startDate === p.start && endDate === p.end)}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <label className="min-w-0 text-xs text-[#6A6A6A]">
+                  From
+                  <input type="date" value={startDate} min={iso(new Date())} onChange={(e) => set({ startDate: e.target.value })} className={cn(field, 'mt-1 text-[#222222]')} />
+                </label>
+                <label className="min-w-0 text-xs text-[#6A6A6A]">
+                  To
+                  <input type="date" value={endDate} min={startDate || iso(new Date())} onChange={(e) => set({ endDate: e.target.value })} className={cn(field, 'mt-1 text-[#222222]')} />
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-[#EBEBEB]">
+              <p className="text-[15px] font-medium mb-3">Budget per person</p>
+              <div className="flex flex-wrap gap-2">
+                {BUDGET_PRESETS.map((p) => (
+                  <button key={p.label} type="button" onClick={() => set(minBudget === p.min && maxBudget === p.max ? { minBudget: '', maxBudget: '' } : { minBudget: p.min, maxBudget: p.max })} className={chip(minBudget === p.min && maxBudget === p.max)}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <input type="number" min={0} inputMode="numeric" value={minBudget} onChange={(e) => set({ minBudget: e.target.value })} placeholder="Min ₹" className={field} />
+                <span className="text-[#6A6A6A]">–</span>
+                <input type="number" min={0} inputMode="numeric" value={maxBudget} onChange={(e) => set({ maxBudget: e.target.value })} placeholder="Max ₹" className={field} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-[#EBEBEB] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <button type="button" onClick={() => set({ q: '', startDate: '', endDate: '', minBudget: '', maxBudget: '' })} disabled={!q && !datesOn && !budgetOn} className="text-sm underline underline-offset-4 disabled:opacity-40 disabled:no-underline">
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                submit();
+                setSheet(false);
+              }}
+              className="rounded-full bg-[#2563EB] active:bg-[#1D4ED8] text-white text-[15px] font-medium px-8 py-3"
+            >
+              Show results
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Suggestions */}
       {open === 'where' && flat.length > 0 && (
@@ -270,11 +396,11 @@ export default function HeroSearch({
           </div>
           <p className="text-xs text-[#6A6A6A] mt-4 mb-2">Or pick your own dates</p>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-[#6A6A6A]">
+            <label className="min-w-0 text-xs text-[#6A6A6A]">
               From
               <input type="date" value={startDate} min={iso(new Date())} onChange={(e) => set({ startDate: e.target.value })} className={cn(field, 'mt-1 text-[#222222]')} />
             </label>
-            <label className="text-xs text-[#6A6A6A]">
+            <label className="min-w-0 text-xs text-[#6A6A6A]">
               To
               <input type="date" value={endDate} min={startDate || iso(new Date())} onChange={(e) => set({ endDate: e.target.value })} className={cn(field, 'mt-1 text-[#222222]')} />
             </label>

@@ -412,7 +412,15 @@ export default function Chats() {
             {/* Conversation list (scrolls within the pane on desktop) */}
             <div className="divide-y divide-[#DDDDDD] lg:flex-1 lg:overflow-y-auto lg:min-h-0">
               {view === 'loading' ? (
-                Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[82px]" />)
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 py-4">
+                    <Skeleton className="w-14 h-14 rounded-xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-4/5" />
+                    </div>
+                  </div>
+                ))
               ) : list.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center py-16 px-6 text-[#6A6A6A]">
                   <MessageCircle size={28} className="mb-2" />
@@ -493,7 +501,12 @@ export default function Chats() {
 
                 {/* Message list: the ONLY scrollable region */}
                 <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3 bg-white">
-                  {messagesLoading && <p className="text-center text-[#6A6A6A] text-sm">Loading messages…</p>}
+                  {messagesLoading &&
+                    [['w-48', false], ['w-64', false], ['w-40', true], ['w-56', false], ['w-32', true]].map(([w, mine], i) => (
+                      <div key={i} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
+                        <Skeleton className={cn('h-10 rounded-2xl max-w-[75%]', w as string)} />
+                      </div>
+                    ))}
                   {!messagesLoading && messages.length === 0 && (
                     <p className="text-center text-[#6A6A6A] text-sm py-10">No messages yet. Start the conversation!</p>
                   )}

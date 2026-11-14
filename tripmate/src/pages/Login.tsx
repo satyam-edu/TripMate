@@ -162,7 +162,7 @@ export default function Login() {
       {/* Same 1080p clip twice: AV1 (6.9 MB) where supported, else the H.264 original (14 MB, mainly Safari).
           The browser downloads only the first source it can play. */}
       <video
-        poster="/travel-bg-poster.jpg"
+        poster="/travel-bg-poster.webp"
         preload="auto"
         autoPlay
         loop
@@ -181,7 +181,7 @@ export default function Login() {
       <header className="hidden lg:block absolute top-0 inset-x-0 z-30">
         <div className="max-w-6xl mx-auto px-8 h-20 flex items-center justify-between text-white">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="" className="w-10 h-10 rounded-full" />
+            <img src="/logo-128.webp" alt="" width={40} height={40} className="w-10 h-10 rounded-full" />
             <span className="flex flex-col leading-tight">
               <span style={{ fontSize: 24, fontWeight: 800 }}>TripMate</span>
               <span className="uppercase tracking-[0.08em] text-white/70" style={{ fontSize: 10.5, fontWeight: 600 }}>
@@ -214,7 +214,7 @@ export default function Login() {
         {/* ── Brand + pitch ────────────────────────────────────────────────────── */}
         <div className="flex-1 lg:flex-none flex flex-col text-white lg:max-w-xl">
           <div className="flex lg:hidden items-center gap-2.5">
-            <img src="/logo.png" alt="" className="w-10 h-10 rounded-full" />
+            <img src="/logo-128.webp" alt="" width={40} height={40} className="w-10 h-10 rounded-full" />
             <span className="flex flex-col leading-tight">
               <span style={{ fontSize: 24, fontWeight: 800 }}>TripMate</span>
               <span className="uppercase tracking-[0.08em] text-white/70" style={{ fontSize: 10.5, fontWeight: 600 }}>

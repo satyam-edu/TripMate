@@ -3,15 +3,16 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import type { Trip } from '../types';
 import api, { apiErrorMessage } from '../services/api';
 import { Users } from 'lucide-react';
-import { Avatar, CoverImg, cn, TAG_STYLE, tripPath, TripMeta, TEXT_STRONG, TEXT_SOFT, CARD_FRAME, CARD_IMG } from './ui-bits';
+import { Avatar, CoverImg, cn, TAG_STYLE, tripPath, TripMeta, TEXT_STRONG, TEXT_SOFT, CARD_FRAME_BASE, CARD_IMG } from './ui-bits';
 import { useAuth } from '../context/AuthContext';
 
 interface TripCardProps {
   trip: Trip;
   currentUserId: string;
+  priority?: boolean; // first cards on the page: load their photo straight away
 }
 
-export default function TripCard({ trip, currentUserId }: TripCardProps) {
+export default function TripCard({ trip, currentUserId, priority }: TripCardProps) {
   const { user } = useAuth();
   const isHost = currentUserId === trip.hostId;
   const canJoinWomenOnly = !trip.womenOnly || user?.gender === 'Woman';
@@ -97,31 +98,31 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative flex flex-col h-full">
       {/* Cover */}
       <div className="relative">
-        <Link to={tripPath(trip)} className={CARD_FRAME} tabIndex={-1} aria-hidden="true">
-          <CoverImg src={trip.coverImage} size={500} alt="" className={CARD_IMG} loading="lazy" decoding="async" />
+        <Link to={tripPath(trip)} className={`${CARD_FRAME_BASE} aspect-[4/3] sm:aspect-[16/10]`} tabIndex={-1} aria-hidden="true">
+          <CoverImg src={trip.coverImage} size={500} sizes="(min-width: 1280px) 360px, (min-width: 640px) 45vw, 46vw" priority={priority} alt="" className={CARD_IMG} />
         </Link>
         {tag && (
           <span
-            className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 backdrop-blur-sm', TAG_STYLE)}
-            style={{ fontSize: 12, fontWeight: 600 }}
+            className={cn('absolute top-2 left-2 sm:top-3 sm:left-3 text-white rounded-full px-2 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-xs backdrop-blur-sm', TAG_STYLE)}
+            style={{ fontWeight: 600 }}
           >
             {tag}
           </span>
         )}
         <span
-          className="absolute top-3 right-3 bg-white/95 text-[#222222] rounded-full px-3 py-1 flex items-center gap-1"
-          style={{ fontSize: 12, fontWeight: 600 }}
+          className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/95 text-[#222222] rounded-full px-2 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-xs flex items-center gap-1"
+          style={{ fontWeight: 600 }}
         >
           <Users size={12} />
           {spotsFilled}/{spotsTotal}
         </span>
         {trip.womenOnly && (
           <span
-            className="absolute bottom-3 left-3 bg-pink-600/90 text-white rounded-full px-3 py-1 backdrop-blur-sm"
-            style={{ fontSize: 12, fontWeight: 600 }}
+            className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 bg-pink-600/90 text-white rounded-full px-2 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-xs backdrop-blur-sm"
+            style={{ fontWeight: 600 }}
           >
             Women only
           </span>
@@ -129,24 +130,24 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
       </div>
 
       {/* Body */}
-      <div className="pt-3">
+      <div className="pt-2.5 sm:pt-3 flex flex-col flex-1">
         <Link
           to={tripPath(trip)}
-          className={cn('block line-clamp-2 break-words text-base font-semibold leading-snug mb-0.5', TEXT_STRONG,
+          className={cn('block line-clamp-2 break-words text-sm sm:text-base font-semibold leading-snug mb-0.5', TEXT_STRONG,
             // stretched link: this one link covers the whole card, so a click anywhere opens the trip
             "after:absolute after:inset-0 after:content-['']")}
         >
           {trip.destination}
         </Link>
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4">
           <TripMeta trip={trip} />
         </div>
-        <div className="flex items-center justify-between gap-2">
+        <div className="mt-auto flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <Link to={`/users/${trip.hostId}`} className="relative z-10 flex items-center gap-2 min-w-0 group">
-              <Avatar src={trip.host.avatar} name={trip.host.name} size={28} />
-              <span className={cn(TEXT_SOFT, 'truncate')} style={{ fontSize: 14 }}>
-                Hosted by{' '}
+              <Avatar src={trip.host.avatar} name={trip.host.name} size={22} />
+              <span className={cn(TEXT_SOFT, 'truncate text-xs sm:text-sm')}>
+                <span className="hidden sm:inline">Hosted by </span>
                 <span className={TEXT_STRONG} style={{ fontWeight: 600 }}>
                   {hostFirstName}
                 </span>
@@ -157,34 +158,34 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
           {/* CTA */}
           {isHost ? (
             <span
-              className="shrink-0 rounded-full px-4 py-2 bg-[#F1F5F9] text-[#6A6A6A] select-none"
-              style={{ fontSize: 14, fontWeight: 600 }}
+              className="shrink-0 w-full sm:w-auto text-center rounded-full px-4 py-1.5 sm:py-2 text-[13px] sm:text-sm bg-[#F1F5F9] text-[#6A6A6A] select-none"
+              style={{ fontWeight: 600 }}
             >
               Your trip
             </span>
           ) : requestStatus === 'PENDING' || requestStatus === 'APPROVED' || requestStatus === 'REJECTED' ? (
             <span
               className={cn(
-                'shrink-0 rounded-full px-4 py-2 select-none',
-                requestStatus === 'PENDING' && 'bg-[#EFF6FF] text-[#2563EB]',
-                requestStatus === 'APPROVED' && 'bg-emerald-50 text-emerald-600',
-                requestStatus === 'REJECTED' && 'bg-red-50 text-red-500',
+                'shrink-0 w-full sm:w-auto text-center rounded-full px-4 py-1.5 sm:py-2 text-[13px] sm:text-sm select-none',
+                requestStatus === 'PENDING' && 'bg-[#F3F3F3] text-[#6A6A6A]',
+                requestStatus === 'APPROVED' && 'bg-[#EFF6FF] text-[#2563EB]',
+                requestStatus === 'REJECTED' && 'bg-[#F3F3F3] text-[#222222]',
               )}
-              style={{ fontSize: 14, fontWeight: 600 }}
+              style={{ fontWeight: 600 }}
             >
               {{ PENDING: 'Pending', APPROVED: 'Going', REJECTED: 'Declined' }[requestStatus]}
             </span>
           ) : isFull ? (
             <span
-              className="shrink-0 rounded-full px-4 py-2 bg-[#F1F5F9] text-[#6A6A6A] select-none"
-              style={{ fontSize: 14, fontWeight: 600 }}
+              className="shrink-0 w-full sm:w-auto text-center rounded-full px-4 py-1.5 sm:py-2 text-[13px] sm:text-sm bg-[#F1F5F9] text-[#6A6A6A] select-none"
+              style={{ fontWeight: 600 }}
             >
               Full
             </span>
           ) : !canJoinWomenOnly ? (
             <span
-              className="shrink-0 rounded-full px-4 py-2 bg-[#F1F5F9] text-[#6A6A6A] select-none"
-              style={{ fontSize: 14, fontWeight: 600 }}
+              className="shrink-0 w-full sm:w-auto text-center rounded-full px-4 py-1.5 sm:py-2 text-[13px] sm:text-sm bg-[#F1F5F9] text-[#6A6A6A] select-none"
+              style={{ fontWeight: 600 }}
             >
               Women only
             </span>
@@ -192,8 +193,8 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
             <button
               type="button"
               onClick={openModal}
-              className="relative z-10 shrink-0 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-full px-5 py-2 transition-colors"
-              style={{ fontSize: 14, fontWeight: 600 }}
+              className="relative z-10 shrink-0 w-full sm:w-auto bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-full px-5 py-1.5 sm:py-2 text-[13px] sm:text-sm transition-colors"
+              style={{ fontWeight: 600 }}
             >
               Join
             </button>

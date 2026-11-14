@@ -31,9 +31,9 @@ type Tab = 'received' | 'sent';
 type ViewState = 'loading' | 'error' | 'ready';
 
 const statusStyle: Record<string, string> = {
-  PENDING: 'bg-amber-50 text-amber-600',
-  APPROVED: 'bg-emerald-50 text-emerald-600',
-  REJECTED: 'bg-red-50 text-red-500',
+  PENDING: 'bg-[#F3F3F3] text-[#6A6A6A]',
+  APPROVED: 'bg-[#EFF6FF] text-[#2563EB]',
+  REJECTED: 'bg-[#F3F3F3] text-[#222222]',
 };
 const statusLabel: Record<string, string> = {
   PENDING: 'Pending',
@@ -196,51 +196,40 @@ export default function Requests() {
         ) : (
           <ul className="divide-y divide-[#DDDDDD]">
             {sent.map((r) => (
-              <li key={r.id} className="py-6">
-                <div className="flex gap-4">
-                  <span className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 shrink-0">
-                    <CoverImg
-                      src={r.trip.coverImage}
-                      size={330}
-                      alt={r.trip.destination}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
+              <li key={r.id} className="py-5 sm:py-6">
+                <div className="flex gap-3.5 sm:gap-4">
+                  <span className="w-[84px] h-[84px] sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+                    <CoverImg src={r.trip.coverImage} size={330} alt={r.trip.destination} className="w-full h-full object-cover" />
                   </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-[#222222] text-base leading-snug font-semibold line-clamp-2 break-words">{r.trip.destination}</p>
-                      <span
-                        className={cn(
-                          'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold',
-                          statusStyle[r.status] ?? 'bg-slate-100 text-[#6A6A6A]',
-                        )}
-                      >
-                        {statusLabel[r.status] ?? r.status}
-                      </span>
-                    </div>
-                    <p className="text-[#6A6A6A] truncate text-sm mt-1">
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <span className={cn('self-start rounded-full px-2.5 py-0.5 text-[11px] font-semibold mb-1.5', statusStyle[r.status] ?? 'bg-slate-100 text-[#6A6A6A]')}>
+                      {statusLabel[r.status] ?? r.status}
+                    </span>
+                    <p className="text-[#222222] text-base leading-snug font-semibold line-clamp-2 break-words">{r.trip.destination}</p>
+                    <p className="text-[#6A6A6A] truncate text-sm mt-0.5">
                       {fmtDate(r.trip.startDate)} · Hosted by {r.trip.host.name.split(' ')[0]}
                     </p>
-                    {r.status !== 'REJECTED' ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => navigate(`/chats?tab=inquiries&chatId=${r.id}`)} className={BTN_OUTLINE}>
-                          <MessageCircle size={14} /> Message host
-                        </button>
-                        <button type="button" disabled={acting[r.id]} onClick={() => handleCancel(r)} className={BTN_OUTLINE}>
-                          {r.status === 'APPROVED' ? 'Leave trip' : 'Cancel request'}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <p className="text-[#6A6A6A] text-sm">The host couldn't fit you in this time.</p>
-                        <button type="button" onClick={() => navigate('/')} className={BTN_OUTLINE}>
-                          Explore trips
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
+                {r.status !== 'REJECTED' ? (
+                  <div className={cn('mt-3.5 grid gap-2 sm:flex sm:ml-28', r.status === 'PENDING' ? 'grid-cols-2' : 'grid-cols-1')}>
+                    <button type="button" onClick={() => navigate(`/chats?tab=inquiries&chatId=${r.id}`)} className={cn(BTN_OUTLINE, 'justify-center')}>
+                      <MessageCircle size={14} /> Message host
+                    </button>
+                    {r.status === 'PENDING' && (
+                      <button type="button" disabled={acting[r.id]} onClick={() => handleCancel(r)} className={cn(BTN_OUTLINE, 'justify-center !border-[#DDDDDD] !text-[#6A6A6A] hover:!text-red-600 hover:!border-red-500')}>
+                        Cancel request
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-3.5 sm:ml-28 flex items-center justify-between gap-3 rounded-xl bg-[#F7F7F7] px-3.5 py-2.5">
+                    <p className="text-[#6A6A6A] text-[13px] leading-snug">The host couldn't fit you in this time.</p>
+                    <button type="button" onClick={() => navigate('/')} className={cn(BTN_OUTLINE, 'shrink-0')}>
+                      Explore trips
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

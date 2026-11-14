@@ -1,3 +1,4 @@
+import { wikiSrcSet } from '../services/images';
 import { useState, type CSSProperties, type ImgHTMLAttributes, type ReactNode } from 'react';
 
 /* ── Trip card text (Airbnb-style hierarchy: near-black first, one soft grey for the rest) ── */
@@ -10,35 +11,47 @@ export const H2 = 'text-[22px] font-semibold leading-snug text-[#222222]';
 // Outline button (Airbnb "secondary"): dark thin border, no fill.
 export const BTN_OUTLINE =
   'inline-flex items-center justify-center gap-1.5 rounded-full border border-[#222222] text-[#222222] hover:bg-slate-50 disabled:opacity-50 px-4 py-2 text-sm font-semibold transition-colors';
-export const CARD_FRAME = 'block aspect-[16/10] overflow-hidden rounded-2xl bg-slate-100';
+export const CARD_FRAME_BASE = 'block overflow-hidden rounded-2xl bg-slate-100';
+export const CARD_FRAME = `${CARD_FRAME_BASE} aspect-[16/9] sm:aspect-[16/10]`;
 export const CARD_IMG = 'w-full h-full object-cover';
 
 export function TripMeta({ trip }: { trip: { country: string; startDate: string; endDate: string; budget: number } }) {
   return (
     <>
-      <p className={`${TEXT_SOFT} text-sm leading-snug`}>
-        {trip.country} · {formatDateRange(trip.startDate, trip.endDate)}
+      <p className={`${TEXT_SOFT} text-xs sm:text-sm leading-snug`}>
+        <span className="block sm:inline truncate">{trip.country}</span>
+        <span className="hidden sm:inline"> · </span>
+        <span className="block sm:inline">{formatDateRange(trip.startDate, trip.endDate)}</span>
       </p>
-      <p className={`${TEXT_STRONG} text-sm font-semibold mt-0.5`}>{formatBudget(trip.budget)}</p>
+      <p className={`${TEXT_STRONG} text-[13px] sm:text-sm font-semibold mt-0.5`}>{formatBudget(trip.budget)}</p>
     </>
   );
 }
 
 /* ── Trip cover photo ───────────────────────────────────────────────────────── */
-// Bundled with the app, so it shows even when a cover link is missing or its host is down.
-const FALLBACK_COVER = '/travel-bg-poster.jpg';
+// Bundled with the app (small webp), so it shows even when a cover link is missing or its host is down.
+const FALLBACK_COVER = '/fallback-cover.webp';
 
-// `size` asks Wikipedia for a smaller copy (covers are stored at 960px) for small thumbnails.
+// `size` = the smallest copy that's good enough here (used as the plain `src` and for browsers that
+// ignore srcset). `sizes` = how wide the image is on screen, so the browser can pick from the srcset.
+// `priority` = above-the-fold image: load it right away instead of lazily.
 export function CoverImg({
   src,
   size,
+  sizes,
+  priority,
   ...props
-}: { src: string | null | undefined; size?: 330 | 500 } & Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'>) {
+}: { src: string | null | undefined; size?: 330 | 500; sizes?: string; priority?: boolean } & Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'>) {
   const url = !src ? FALLBACK_COVER : size ? src.replace('/960px-', `/${size}px-`) : src;
   return (
     <img
+      loading={priority ? 'eager' : 'lazy'}
+      decoding="async"
+      fetchPriority={priority ? 'high' : undefined}
       {...props}
       src={url}
+      srcSet={src && sizes ? wikiSrcSet(src) : undefined}
+      sizes={src && sizes && wikiSrcSet(src) ? sizes : undefined}
       onError={(e) => {
         if (!e.currentTarget.src.endsWith(FALLBACK_COVER)) e.currentTarget.src = FALLBACK_COVER;
       }}
@@ -112,8 +125,11 @@ export function Avatar({
     return (
       <span className={cls} style={style}>
         <img
-          src={src}
+          src={avatarUrl(src, size)}
           alt={name}
+          width={size}
+          height={size}
+          decoding="async"
           className="w-full h-full object-cover"
           loading="lazy"
           referrerPolicy="no-referrer"
@@ -127,6 +143,11 @@ export function Avatar({
       {getInitials(name)}
     </span>
   );
+}
+
+// Google profile photos end in "=s96-c" (size + crop). Ask for 2× the displayed size, not the default.
+function avatarUrl(src: string, size: number): string {
+  return /googleusercontent\.com\/.*=s\d+(-c)?$/.test(src) ? src.replace(/=s\d+(-c)?$/, `=s${Math.min(512, Math.max(48, size * 2))}-c`) : src;
 }
 
 /* ── Pill (category filter / toggle) ────────────────────────────────────────── */
@@ -201,7 +222,7 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between mb-5">
-      <h2 className="text-[#222222]" style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>
+      <h2 className="text-[#222222] text-xl sm:text-[22px] font-semibold leading-tight">
         {title}
       </h2>
       {action && (
@@ -219,7 +240,7 @@ export function SectionHeader({
 
 /* ── Skeleton ───────────────────────────────────────────────────────────────── */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-2xl bg-[#EBEBEB]', className)} />;
+  return <div aria-hidden className={cn('skeleton rounded-2xl', className)} />;
 }
 
 /* ── Empty state ────────────────────────────────────────────────────────────── */

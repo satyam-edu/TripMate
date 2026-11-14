@@ -11,7 +11,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import api, { apiErrorMessage, cachedGet } from '../services/api';
+import api, { apiErrorMessage, cachedGet, clearGetCache } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, CoverImg, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tripPath, TEXT_STRONG, TEXT_SOFT } from '../components/ui-bits';
 
@@ -20,6 +20,7 @@ interface Person {
   id: string;
   name: string;
   avatar: string | null;
+  requestId?: string; // only sent to the host, so they can remove a traveller
 }
 
 interface TripDetailData {
@@ -110,6 +111,26 @@ export default function TripDetail() {
   const status = trip.myRequest?.status;
   const hostFirst = trip.host.name.split(' ')[0];
 
+  // Leave (traveller) / remove (host) both delete the request, which also takes them out of the group chat.
+  const dropRequest = async (requestId: string, question: string, after: () => void) => {
+    if (!window.confirm(question)) return;
+    try {
+      await api.delete(`/requests/${requestId}`);
+      clearGetCache();
+      after();
+    } catch (err) {
+      window.alert(apiErrorMessage(err, 'Something went wrong. Please try again.'));
+    }
+  };
+  const leaveTrip = () =>
+    dropRequest(trip.myRequest!.id, `Leave the ${trip.destination} trip? You'll be removed from the group chat.`, () =>
+      setTrip({ ...trip, myRequest: null, members: trip.members.filter((m) => m.id !== user?.id) }),
+    );
+  const removeMember = (m: Person) =>
+    dropRequest(m.requestId!, `Remove ${m.name.split(' ')[0]} from this trip? They'll lose access to the group chat.`, () =>
+      setTrip({ ...trip, members: trip.members.filter((x) => x.id !== m.id) }),
+    );
+
   const share = async () => {
     const url = window.location.href;
     if (navigator.share) {
@@ -175,7 +196,7 @@ export default function TripDetail() {
 
       {/* ── Cover ───────────────────────────────────────────────────────────── */}
       <div className="h-56 sm:h-[26rem] rounded-2xl overflow-hidden bg-slate-100">
-        <CoverImg src={trip.coverImage} alt={trip.destination} className="w-full h-full object-cover" />
+        <CoverImg src={trip.coverImage} sizes="(min-width: 1024px) 1024px, 100vw" priority alt={trip.destination} className="w-full h-full object-cover" />
       </div>
 
       <div className="grid gap-x-16 lg:grid-cols-[1fr_360px] items-start">
@@ -224,7 +245,7 @@ export default function TripDetail() {
             <ul className="space-y-4">
               <PersonRow person={trip.host} note="Host" />
               {trip.members.map((m) => (
-                <PersonRow key={m.id} person={m} note={m.id === user?.id ? 'You' : undefined} />
+                <PersonRow key={m.id} person={m} note={m.id === user?.id ? 'You' : undefined} onRemove={isHost && m.requestId && !hasEnded ? () => removeMember(m) : undefined} />
               ))}
             </ul>
           </section>
@@ -275,6 +296,11 @@ export default function TripDetail() {
                 <Link to={`/chats?tab=groups&chatId=${trip.id}`} className={cn(primaryBtn, 'mt-4 w-full')}>
                   <MessageCircle size={16} /> Open group chat
                 </Link>
+                {!hasEnded && (
+                  <button type="button" onClick={leaveTrip} className="mt-3 w-full text-center text-sm font-medium text-[#6A6A6A] underline underline-offset-4 hover:text-red-600 transition-colors">
+                    Leave this trip
+                  </button>
+                )}
               </>
             ) : status === 'PENDING' ? (
               <>
@@ -335,22 +361,27 @@ function Fact({ icon, title, sub }: { icon: React.ReactNode; title: string; sub:
   );
 }
 
-function PersonRow({ person, note }: { person: Person; note?: string }) {
+function PersonRow({ person, note, onRemove }: { person: Person; note?: string; onRemove?: () => void }) {
   return (
     <li className="flex items-center gap-4">
       <Avatar src={person.avatar} name={person.name} size={48} />
       <span className={cn('text-base font-semibold truncate', TEXT_STRONG)}>{person.name}</span>
       {note && <span className={cn('ml-auto shrink-0 text-sm', TEXT_SOFT)}>{note}</span>}
+      {onRemove && (
+        <button type="button" onClick={onRemove} className="ml-auto shrink-0 rounded-full border border-[#DDDDDD] px-3.5 py-1.5 text-[13px] font-medium text-[#6A6A6A] hover:border-red-500 hover:text-red-600 transition-colors">
+          Remove
+        </button>
+      )}
     </li>
   );
 }
 
 function StatusPill({ tone, children }: { tone: 'green' | 'blue' | 'red' | 'grey'; children: React.ReactNode }) {
   const tones = {
-    green: 'bg-emerald-50 text-emerald-700',
-    blue: 'bg-blue-50 text-blue-700',
-    red: 'bg-red-50 text-red-600',
-    grey: 'bg-slate-100 text-[#6A6A6A]',
+    green: 'bg-[#EFF6FF] text-[#2563EB]',
+    blue: 'bg-[#F3F3F3] text-[#222222]',
+    red: 'bg-[#F3F3F3] text-[#222222]',
+    grey: 'bg-[#F3F3F3] text-[#6A6A6A]',
   };
   return <p className={cn('rounded-2xl px-4 py-3 text-sm font-semibold', tones[tone])}>{children}</p>;
 }
@@ -577,12 +608,34 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
 
 function DetailSkeleton() {
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
-      <Skeleton className="h-4 w-16" />
-      <Skeleton className="h-8 w-64" />
+    <div className="max-w-5xl mx-auto">
+      <Skeleton className="h-5 w-16 mb-4" />
+      <Skeleton className="h-8 w-72 max-w-full mb-2" />
+      <Skeleton className="h-4 w-48 mb-5" />
       <Skeleton className="h-56 sm:h-[26rem] rounded-2xl" />
-      <Skeleton className="h-6 w-52 mt-8" />
-      <Skeleton className="h-20" />
+      <div className="grid gap-x-16 gap-y-8 lg:grid-cols-[1fr_360px] items-start mt-8">
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-14 h-14 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-48 max-w-full" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+          <Skeleton className="h-6 w-40" />
+          <div className="grid grid-cols-3 gap-3">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </div>
+        </div>
+        <Skeleton className="hidden lg:block h-64 rounded-2xl" />
+      </div>
     </div>
   );
 }

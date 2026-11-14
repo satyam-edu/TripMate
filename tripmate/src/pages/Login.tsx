@@ -159,8 +159,9 @@ export default function Login() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* ── Full-screen looping video background ───────────────────────────────── */}
+      {/* Same 1080p clip twice: AV1 (6.9 MB) where supported, else the H.264 original (14 MB, mainly Safari).
+          The browser downloads only the first source it can play. */}
       <video
-        src="/travel-bg.mp4"
         poster="/travel-bg-poster.jpg"
         preload="auto"
         autoPlay
@@ -168,7 +169,10 @@ export default function Login() {
         muted
         playsInline
         className="absolute inset-0 w-full h-full object-cover z-0"
-      />
+      >
+        <source src="/travel-bg-av1.mp4" type='video/mp4; codecs="av01.0.08M.10"' />
+        <source src="/travel-bg.mp4" type="video/mp4" />
+      </video>
 
       {/* Dark gradient: heavier on the left where the text sits, lighter on the right */}
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-slate-950/30 lg:bg-gradient-to-r lg:from-slate-950/80 lg:via-slate-950/40 lg:to-slate-950/10 z-10" />

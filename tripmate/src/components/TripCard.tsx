@@ -3,7 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import type { Trip } from '../types';
 import api, { apiErrorMessage } from '../services/api';
 import { Calendar, Wallet, Users } from 'lucide-react';
-import { Avatar, CoverImg, cn, tagColor, formatDateRange, formatBudget, tripPath } from './ui-bits';
+import { Avatar, CoverImg, cn, TAG_STYLE, formatDateRange, formatBudget, tripPath } from './ui-bits';
 import { useAuth } from '../context/AuthContext';
 
 interface TripCardProps {
@@ -105,7 +105,7 @@ export default function TripCard({ trip, currentUserId }: TripCardProps) {
         </Link>
         {tag && (
           <span
-            className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 backdrop-blur-sm', tagColor(tag))}
+            className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 backdrop-blur-sm', TAG_STYLE)}
             style={{ fontSize: 12, fontWeight: 600 }}
           >
             {tag}

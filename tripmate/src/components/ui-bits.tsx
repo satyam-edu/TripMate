@@ -58,18 +58,9 @@ export function formatBudget(inr: number): string {
   return `₹${inr.toLocaleString('en-IN')}`;
 }
 
-const TAG_COLORS: Record<string, string> = {
-  Mountains: 'bg-emerald-500/90',
-  Beaches: 'bg-sky-500/90',
-  Culture: 'bg-amber-500/90',
-  Adventure: 'bg-orange-500/90',
-  Wildlife: 'bg-lime-600/90',
-  'Road Trip': 'bg-violet-500/90',
-};
-
-export function tagColor(tag: string): string {
-  return TAG_COLORS[tag] ?? 'bg-[#2563EB]/90';
-}
+// One neutral "dark glass" look for every category tag (pair with text-white + backdrop-blur).
+// Reads on any photo and on white, and doesn't compete with the cover image.
+export const TAG_STYLE = 'bg-slate-900/55 ring-1 ring-white/15';
 
 /* ── Avatar (img with initials fallback) ────────────────────────────────────── */
 export function Avatar({

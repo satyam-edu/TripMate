@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import api, { apiErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, tagColor, formatDateRange, formatBudget } from '../components/ui-bits';
+import { Avatar, TAG_STYLE, formatDateRange, formatBudget } from '../components/ui-bits';
 
 /* ── Types & constants ──────────────────────────────────────────────────────── */
 type Category = 'Mountains' | 'Beaches' | 'Culture' | 'Adventure' | 'Wildlife' | 'Road Trip';
@@ -360,7 +360,7 @@ export default function PostTab() {
                 <img src={PREVIEW_COVER} alt="" className="w-full h-full object-cover" />
               </div>
               <span
-                className={`absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm ${tagColor(tag)}`}
+                className={`absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm ${TAG_STYLE}`}
               >
                 {tag}
               </span>

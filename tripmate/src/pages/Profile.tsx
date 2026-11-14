@@ -8,7 +8,7 @@ import type { AuthUser } from '../context/AuthContext';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
 import type { Trip } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, CoverImg, Skeleton, tagColor, formatDateRange, formatBudget, cn, tripPath } from '../components/ui-bits';
+import { Avatar, CoverImg, Skeleton, TAG_STYLE, formatDateRange, formatBudget, cn, tripPath } from '../components/ui-bits';
 
 const COVER = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&h=400&fit=crop&auto=format';
 
@@ -830,7 +830,7 @@ function ProfileTripCard({
           <CoverImg src={trip.coverImage} size={500} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
         </Link>
         {tag && (
-          <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', tagColor(tag))}>
+          <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', TAG_STYLE)}>
             {tag}
           </span>
         )}

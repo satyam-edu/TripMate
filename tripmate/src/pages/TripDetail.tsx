@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, CoverImg, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
+import { Avatar, CoverImg, ErrorState, Skeleton, cn, formatBudget, formatDateRange, TAG_STYLE, tripPath } from '../components/ui-bits';
 
 /* ── Types (match GET /api/trips/:id) ───────────────────────────────────────── */
 interface Person {
@@ -183,7 +183,7 @@ export default function TripDetail() {
           {trip.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 sm:justify-end sm:max-w-[50%] sm:shrink-0">
               {trip.tags.slice(0, 4).map((t) => (
-                <span key={t} className={cn('rounded-full px-3 py-1 text-xs font-semibold text-white', tagColor(t))}>
+                <span key={t} className={cn('rounded-full px-3 py-1 text-xs font-semibold text-white', TAG_STYLE)}>
                   {t}
                 </span>
               ))}

@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { BadgeCheck, Calendar, Compass, Flag, Link2, MapPin, MoreVertical, ShieldOff, Star, UserX, Wallet, X } from 'lucide-react';
 import api, { apiErrorMessage, cachedGet } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Avatar, CoverImg, ErrorState, Skeleton, cn, formatBudget, formatDateRange, tagColor, tripPath } from '../components/ui-bits';
+import { Avatar, CoverImg, ErrorState, Skeleton, cn, formatBudget, formatDateRange, TAG_STYLE, tripPath } from '../components/ui-bits';
 
 /* ── Types (match GET /api/users/:id — private fields already stripped server-side) ── */
 interface PublicTrip {
@@ -308,7 +308,7 @@ function PublicTripCard({ trip, isPast }: { trip: PublicTrip; isPast: boolean })
           />
         </div>
         {tag && (
-          <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', tagColor(tag))}>
+          <span className={cn('absolute top-3 left-3 text-white rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm', TAG_STYLE)}>
             {tag}
           </span>
         )}
